@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
 import { api } from '@/lib/api';
 import type { SchemaColumn } from '@/types';
 
@@ -9,6 +10,8 @@ interface FormModalProps {
   columns: SchemaColumn[];
   onClose: () => void;
   onSuccess: () => void;
+  /** Viewport rect of the table card — modal is placed just below (or above) it */
+  anchorRect: DOMRect;
 }
 
 function getInputType(dataType: string): 'text' | 'number' | 'checkbox' {
@@ -29,7 +32,11 @@ function getInputType(dataType: string): 'text' | 'number' | 'checkbox' {
 
 const SKIP_COLUMNS = new Set(['id', 'created_at', 'updated_at']);
 
-export function FormModal({ tableName, columns, onClose, onSuccess }: FormModalProps) {
+const MODAL_MAX_W = 448;
+const MODAL_MIN_W = 280;
+const VIEW_MARGIN = 8;
+
+export function FormModal({ tableName, columns, onClose, onSuccess, anchorRect }: FormModalProps) {
   const editableColumns = columns.filter((c) => !SKIP_COLUMNS.has(c.column_name));
   const [values, setValues] = useState<Record<string, string | boolean>>(() => {
     const init: Record<string, string | boolean> = {};
@@ -42,6 +49,34 @@ export function FormModal({ tableName, columns, onClose, onSuccess }: FormModalP
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
+  const [panelStyle, setPanelStyle] = useState<CSSProperties>({});
+
+  useEffect(() => {
+    setPortalEl(document.body);
+  }, []);
+
+  useLayoutEffect(() => {
+    const vw = typeof window !== 'undefined' ? window.innerWidth : 800;
+    const vh = typeof window !== 'undefined' ? window.innerHeight : 600;
+    const panelW = Math.min(MODAL_MAX_W, Math.max(MODAL_MIN_W, anchorRect.width));
+    let left = anchorRect.left + (anchorRect.width - panelW) / 2;
+    left = Math.max(VIEW_MARGIN, Math.min(left, vw - panelW - VIEW_MARGIN));
+    const gap = 8;
+    const maxPanelH = Math.min(vh * 0.65, 560);
+    let top = anchorRect.bottom + gap;
+    if (top + maxPanelH > vh - VIEW_MARGIN) {
+      top = Math.max(VIEW_MARGIN, anchorRect.top - maxPanelH - gap);
+    }
+    setPanelStyle({
+      position: 'fixed',
+      top,
+      left,
+      width: panelW,
+      maxHeight: maxPanelH,
+      zIndex: 60,
+    });
+  }, [anchorRect]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -77,16 +112,21 @@ export function FormModal({ tableName, columns, onClose, onSuccess }: FormModalP
     }
   };
 
-  return (
+  const content = (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-[55] bg-black/60 backdrop-blur-sm"
+      style={{ pointerEvents: 'auto' }}
       onClick={(e) => {
         if (e.target === overlayRef.current) onClose();
       }}
     >
-      <div className="glass-card rounded-xl w-full max-w-md mx-4 shadow-2xl animate-fade-in overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#222]">
+      <div
+        className="glass-card rounded-xl shadow-2xl animate-fade-in overflow-hidden flex flex-col"
+        style={panelStyle}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex shrink-0 items-center justify-between px-5 py-4 border-b border-[#222]">
           <div>
             <h2 className="text-sm font-semibold text-zinc-100">Add Row</h2>
             <p className="text-xs text-zinc-500 mt-0.5 font-mono">{tableName}</p>
@@ -101,7 +141,11 @@ export function FormModal({ tableName, columns, onClose, onSuccess }: FormModalP
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="px-5 py-4 space-y-3 max-h-[60vh] overflow-y-auto scrollbar-thin">
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-col min-h-0 flex-1 px-5 py-4"
+        >
+          <div className="space-y-3 min-h-0 flex-1 overflow-y-auto scrollbar-thin">
           {editableColumns.length === 0 ? (
             <p className="text-xs text-zinc-500 text-center py-4">No editable columns found.</p>
           ) : (
@@ -160,28 +204,32 @@ export function FormModal({ tableName, columns, onClose, onSuccess }: FormModalP
               {error}
             </p>
           )}
-        </form>
+          </div>
 
-        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-[#222]">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-3 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-zinc-200 hover:bg-white/5 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className="px-4 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-medium transition-colors flex items-center gap-1.5"
-          >
-            {isSubmitting && (
-              <div className="w-3 h-3 border border-white/40 border-t-white rounded-full animate-spin" />
-            )}
-            Insert Row
-          </button>
-        </div>
+          <div className="flex shrink-0 items-center justify-end gap-2 pt-4 mt-2 border-t border-[#222]">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-3 py-1.5 rounded-lg text-xs text-zinc-400 hover:text-zinc-200 hover:bg-white/5 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="px-4 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-medium transition-colors flex items-center gap-1.5"
+            >
+              {isSubmitting && (
+                <div className="w-3 h-3 border border-white/40 border-t-white rounded-full animate-spin" />
+              )}
+              Insert Row
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
+
+  if (!portalEl) return null;
+  return createPortal(content, portalEl);
 }

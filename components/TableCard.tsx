@@ -31,7 +31,9 @@ export function TableCard({
   const [rows, setRows] = useState<DataRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [modalAnchor, setModalAnchor] = useState<DOMRect | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ x, y });
   const [appeared, setAppeared] = useState(!isNew);
 
@@ -144,6 +146,7 @@ export function TableCard({
   return (
     <>
       <div
+        ref={cardRef}
         className={`absolute glass-card rounded-xl overflow-hidden select-none transition-shadow duration-200 ${
           isDragging ? 'shadow-2xl shadow-black/60 z-50' : 'shadow-lg z-10'
         } ${appeared ? 'animate-card-appear' : 'opacity-0'}`}
@@ -248,7 +251,13 @@ export function TableCard({
 
         <div className="px-3 py-2 border-t border-[#1e1e1e]">
           <button
-            onClick={() => setShowModal(true)}
+            type="button"
+            onClick={() => {
+              const el = cardRef.current;
+              if (!el) return;
+              setModalAnchor(el.getBoundingClientRect());
+              setShowModal(true);
+            }}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] text-zinc-400 hover:text-violet-300 hover:bg-violet-500/10 transition-colors w-full"
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -259,13 +268,18 @@ export function TableCard({
         </div>
       </div>
 
-      {showModal && (
+      {showModal && modalAnchor && (
         <FormModal
           tableName={tableName}
           columns={columns}
-          onClose={() => setShowModal(false)}
+          anchorRect={modalAnchor}
+          onClose={() => {
+            setShowModal(false);
+            setModalAnchor(null);
+          }}
           onSuccess={() => {
             setShowModal(false);
+            setModalAnchor(null);
             fetchData();
           }}
         />
