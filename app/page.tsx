@@ -7,6 +7,7 @@ import { Sidebar } from '@/components/Sidebar';
 import { Canvas } from '@/components/Canvas';
 import { ChatPanel } from '@/components/ChatPanel';
 import { SlidePanel } from '@/components/SlidePanel';
+import type { SchemaChange } from '@/components/SlidePanel';
 import type { Column, VisualCard } from '@/types';
 
 export default function Home() {
@@ -30,8 +31,16 @@ export default function Home() {
     session.addVisualCard({ ...card, id, x, y });
   };
 
-  const handlePrefillConfirm = async (tableName: string, values: Record<string, unknown>) => {
-    await api.insertRow(tableName, values);
+  const handlePrefillConfirm = async (
+    tableName: string,
+    values: Record<string, unknown>,
+    schemaChanges: SchemaChange[]
+  ) => {
+    if (schemaChanges.length > 0) {
+      await api.alterAndInsert(tableName, schemaChanges, values);
+    } else {
+      await api.insertRow(tableName, values);
+    }
     window.dispatchEvent(new CustomEvent('morph:refresh', { detail: { tableName } }));
     setPrefillState(null);
   };

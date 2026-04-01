@@ -72,9 +72,11 @@ function renderMessageText(text: string): React.ReactNode {
 function MessageBubble({
   message,
   isLatestAssistant,
+  onSuggestionClick,
 }: {
   message: LocalMessage;
   isLatestAssistant: boolean;
+  onSuggestionClick?: (text: string) => void;
 }) {
   const isUser = message.role === 'user';
 
@@ -119,6 +121,21 @@ function MessageBubble({
             renderMessageText(message.text)
           )}
         </div>
+
+        {/* Suggestion chips — only on plan messages */}
+        {message.suggestions && message.suggestions.length > 0 && isLatestAssistant && (
+          <div className="flex flex-col gap-1.5 mt-1 w-full">
+            {message.suggestions.map((s, i) => (
+              <button
+                key={i}
+                onClick={() => onSuggestionClick?.(s)}
+                className="text-left px-3 py-2 rounded-xl text-[11px] text-violet-300 border border-violet-500/25 bg-violet-500/8 hover:bg-violet-500/18 hover:border-violet-500/50 transition-all duration-150 leading-snug"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
 
         {message.warning && (
           <div className="flex items-start gap-1.5 px-2 py-1.5 rounded-lg bg-amber-500/8 border border-amber-500/15 text-[10px] text-amber-400/80 max-w-full">
@@ -306,6 +323,22 @@ export function ChatPanel({
             key={msg.id}
             message={msg}
             isLatestAssistant={msg.id === latestAssistantId}
+            onSuggestionClick={async (text) => {
+              if (isSending) return;
+              const response = await onSend(text);
+              if (!response) return;
+              if (response.action === 'create' && response.schema?.tableName) {
+                const pos = getNextCardPosition();
+                onTableAction(response.schema.tableName, pos.x, pos.y);
+              }
+              if (response.action === 'create_many' && response.schemas) {
+                const baseX = 60 + (existingTables.length % 3) * 380;
+                const baseY = 60 + Math.floor(existingTables.length / 3) * 320;
+                response.schemas.forEach((schema, i) => {
+                  onTableAction(schema.tableName, baseX + i * 380, baseY);
+                });
+              }
+            }}
           />
         ))}
         <div ref={messagesEndRef} />

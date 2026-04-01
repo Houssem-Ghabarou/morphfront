@@ -56,7 +56,8 @@ export interface ChatResponse {
     tableName: string;
     columns: Column[];
   } | null;
-  action: 'create' | 'alter' | 'insert' | 'select' | 'unknown' | 'prefill' | 'query' | 'create_many';
+  action: 'create' | 'alter' | 'insert' | 'select' | 'unknown' | 'prefill' | 'query' | 'create_many' | 'plan';
+  suggestions?: string[];
   alreadyExisted?: boolean;
   sessionName?: string;
   suggestion?: string;
@@ -95,4 +96,5 @@ export interface LocalMessage {
   text: string;
   warning?: string;
   isTyping?: boolean;
+  suggestions?: string[];
 }

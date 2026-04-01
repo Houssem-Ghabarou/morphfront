@@ -81,4 +81,15 @@ export const api = {
   getSessionRelations(sessionId: number): Promise<{ relations: Relation[] }> {
     return request(`/api/sessions/${sessionId}/relations`);
   },
+
+  alterAndInsert(
+    tableName: string,
+    changes: Array<{ action: string; column: string; newName?: string; newType?: string }>,
+    row: Record<string, unknown>
+  ): Promise<{ row: DataRow; ok: boolean }> {
+    return request(`/api/data/${tableName}/schema`, {
+      method: 'PATCH',
+      body: JSON.stringify({ changes, row }),
+    });
+  },
 };

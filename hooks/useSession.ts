@@ -148,6 +148,7 @@ export function useSession(): UseSessionReturn {
             text: response.message,
             warning: response.suggestion,
             isTyping: false,
+            suggestions: response.action === 'plan' ? (response.suggestions ?? []) : undefined,
           })
         );
 
