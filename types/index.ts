@@ -40,6 +40,13 @@ export interface SessionDetail {
   name: string;
   messages: ChatMessage[];
   sessionTables: SessionTable[];
+  relations: Relation[];
+}
+
+export interface Relation {
+  from: string;
+  to: string;
+  on: string;
 }
 
 export interface ChatResponse {
@@ -49,7 +56,7 @@ export interface ChatResponse {
     tableName: string;
     columns: Column[];
   } | null;
-  action: 'create' | 'alter' | 'insert' | 'select' | 'unknown' | 'prefill' | 'query';
+  action: 'create' | 'alter' | 'insert' | 'select' | 'unknown' | 'prefill' | 'query' | 'create_many';
   alreadyExisted?: boolean;
   sessionName?: string;
   suggestion?: string;
@@ -57,6 +64,8 @@ export interface ChatResponse {
   rows?: Record<string, unknown>[];
   columns?: string[];
   chartType?: 'bar' | 'stat' | 'table';
+  schemas?: Array<{ tableName: string; columns: Column[] }>;
+  relations?: Relation[];
 }
 
 export interface VisualCard {

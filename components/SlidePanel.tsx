@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { Column } from '@/types';
+import { api } from '@/lib/api';
+import type { Column, Relation } from '@/types';
 
 interface SlidePanelProps {
   tableName: string;
   columns: Column[];
   prefillValues: Record<string, unknown>;
   sessionTables: string[];
+  relations: Relation[];
   onConfirm: (tableName: string, values: Record<string, unknown>) => Promise<void>;
   onCancel: () => void;
 }
@@ -23,10 +25,13 @@ function getInputType(dataType: string): 'text' | 'number' | 'number-int' | 'che
   return 'text';
 }
 
+interface FkOption { value: string | number; label: string }
+
 export function SlidePanel({
   tableName,
   columns,
   prefillValues,
+  relations,
   onConfirm,
   onCancel,
 }: SlidePanelProps) {
@@ -50,11 +55,52 @@ export function SlidePanel({
 
   const [isLoading, setIsLoading] = useState(false);
   const [visible, setVisible] = useState(false);
+  // Map of column name → dropdown options fetched from the referenced table
+  const [fkOptions, setFkOptions] = useState<Record<string, FkOption[]>>({});
 
   useEffect(() => {
     const timer = setTimeout(() => setVisible(true), 10);
     return () => clearTimeout(timer);
   }, []);
+
+  // For each FK column, fetch rows from the referenced table to build the dropdown
+  useEffect(() => {
+    const fkCols = userColumns.filter((col) =>
+      relations.some((rel) => rel.from === tableName && rel.on === col.name)
+    );
+
+    for (const col of fkCols) {
+      const rel = relations.find((r) => r.from === tableName && r.on === col.name);
+      if (!rel) continue;
+      const refTable = rel.to;
+
+      Promise.all([api.getSchema(refTable), api.getTableData(refTable)])
+        .then(([schema, data]) => {
+          // Pick the first non-system text-like column as the display label
+          const labelCol =
+            schema.columns.find(
+              (c) =>
+                c.column_name !== 'id' &&
+                c.column_name !== 'created_at' &&
+                (c.data_type.includes('char') || c.data_type.includes('text'))
+            )?.column_name ??
+            schema.columns.find(
+              (c) => c.column_name !== 'id' && c.column_name !== 'created_at'
+            )?.column_name;
+
+          // If the FK column is text type, store the label (name) as value; otherwise store the id
+          const colIsText = getInputType(col.type) === 'text';
+          const options: FkOption[] = data.rows.map((row) => {
+            const label = labelCol ? String(row[labelCol]) : `#${row.id}`;
+            return { value: colIsText ? label : (row.id as number), label };
+          });
+
+          setFkOptions((prev) => ({ ...prev, [col.name]: options }));
+        })
+        .catch(() => {/* non-critical */});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tableName, relations]);
 
   const handleFieldChange = (colName: string, inputType: ReturnType<typeof getInputType>, value: string | boolean) => {
     setFormValues((prev) => ({
@@ -68,7 +114,18 @@ export function SlidePanel({
   const handleConfirm = async () => {
     setIsLoading(true);
     try {
-      await onConfirm(tableName, formValues);
+      // Convert empty strings on numeric/int fields to null
+      const sanitized: Record<string, unknown> = {};
+      for (const col of userColumns) {
+        const inputType = getInputType(col.type);
+        const val = formValues[col.name];
+        if ((inputType === 'number' || inputType === 'number-int') && val === '') {
+          sanitized[col.name] = null;
+        } else {
+          sanitized[col.name] = val;
+        }
+      }
+      await onConfirm(tableName, sanitized);
     } finally {
       setIsLoading(false);
     }
@@ -94,7 +151,7 @@ export function SlidePanel({
             <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
             <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
           </svg>
-          <span className="text-sm font-medium text-zinc-200">{tableName}</span>
+          <span className="text-sm font-medium text-zinc-200">{tableName.replace(/^s\d+_/, '')}</span>
         </div>
         <button
           onClick={onCancel}
@@ -116,20 +173,34 @@ export function SlidePanel({
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
         {userColumns.map((col) => {
           const inputType = getInputType(col.type);
-          const isForeignKey = col.name.endsWith('_id');
           const value = formValues[col.name];
+          const fkOpts = fkOptions[col.name];
 
           return (
             <div key={col.name}>
               <label className="block text-[11px] text-zinc-500 uppercase tracking-wider font-medium mb-1">
-                {col.name.replace(/_/g, ' ')}
+                {col.name.replace(/_id$/, '').replace(/_/g, ' ')}
                 <span className="ml-1.5 text-zinc-700 normal-case tracking-normal font-normal">
-                  {col.type.toLowerCase()}
+                  {fkOpts ? 'linked record' : col.type.toLowerCase()}
                   {!col.nullable && ' · required'}
                 </span>
               </label>
 
-              {inputType === 'checkbox' ? (
+              {fkOpts ? (
+                // FK column → dropdown of referenced table rows
+                <select
+                  value={value as string | number}
+                  onChange={(e) => handleFieldChange(col.name, inputType, e.target.value)}
+                  className="bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg px-3 py-2 text-sm text-zinc-200 focus:border-violet-500/50 focus:outline-none w-full"
+                >
+                  <option value="">— select —</option>
+                  {fkOpts.map((opt) => (
+                    <option key={String(opt.value)} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              ) : inputType === 'checkbox' ? (
                 <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -146,14 +217,7 @@ export function SlidePanel({
                   value={value as string | number}
                   onChange={(e) => handleFieldChange(col.name, inputType, e.target.value)}
                   className="bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg px-3 py-2 text-sm text-zinc-200 focus:border-violet-500/50 focus:outline-none w-full"
-                  placeholder={isForeignKey ? 'Enter ID' : ''}
                 />
-              )}
-
-              {isForeignKey && (
-                <p className="mt-1 text-[10px] text-zinc-600">
-                  Foreign key — enter the ID manually
-                </p>
               )}
             </div>
           );

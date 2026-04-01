@@ -3,11 +3,14 @@
 import { useState, useEffect, useRef, useLayoutEffect, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '@/lib/api';
-import type { SchemaColumn } from '@/types';
+import type { SchemaColumn, Relation } from '@/types';
+
+interface FkOption { value: string | number; label: string }
 
 interface FormModalProps {
   tableName: string;
   columns: SchemaColumn[];
+  relations: Relation[];
   onClose: () => void;
   onSuccess: () => void;
   /** Viewport rect of the table card — modal is placed just below (or above) it */
@@ -36,7 +39,7 @@ const MODAL_MAX_W = 448;
 const MODAL_MIN_W = 280;
 const VIEW_MARGIN = 8;
 
-export function FormModal({ tableName, columns, onClose, onSuccess, anchorRect }: FormModalProps) {
+export function FormModal({ tableName, columns, relations, onClose, onSuccess, anchorRect }: FormModalProps) {
   const editableColumns = columns.filter((c) => !SKIP_COLUMNS.has(c.column_name));
   const [values, setValues] = useState<Record<string, string | boolean>>(() => {
     const init: Record<string, string | boolean> = {};
@@ -51,6 +54,7 @@ export function FormModal({ tableName, columns, onClose, onSuccess, anchorRect }
   const overlayRef = useRef<HTMLDivElement>(null);
   const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
   const [panelStyle, setPanelStyle] = useState<CSSProperties>({});
+  const [fkOptions, setFkOptions] = useState<Record<string, FkOption[]>>({});
 
   useEffect(() => {
     setPortalEl(document.body);
@@ -85,6 +89,35 @@ export function FormModal({ tableName, columns, onClose, onSuccess, anchorRect }
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [onClose]);
+
+  useEffect(() => {
+    const fkCols = editableColumns.filter((col) =>
+      relations.some((rel) => rel.from === tableName && rel.on === col.column_name)
+    );
+    for (const col of fkCols) {
+      const rel = relations.find((r) => r.from === tableName && r.on === col.column_name);
+      if (!rel) continue;
+      Promise.all([api.getSchema(rel.to), api.getTableData(rel.to)])
+        .then(([schema, data]) => {
+          const labelCol =
+            schema.columns.find(
+              (c) =>
+                c.column_name !== 'id' &&
+                c.column_name !== 'created_at' &&
+                (c.data_type.includes('char') || c.data_type.includes('text'))
+            )?.column_name ??
+            schema.columns.find((c) => c.column_name !== 'id' && c.column_name !== 'created_at')?.column_name;
+          const colIsText = col.data_type.includes('char') || col.data_type.includes('text');
+          const options: FkOption[] = data.rows.map((row) => {
+            const label = labelCol ? String(row[labelCol]) : `#${row.id}`;
+            return { value: colIsText ? label : (row.id as number), label };
+          });
+          setFkOptions((prev) => ({ ...prev, [col.column_name]: options }));
+        })
+        .catch(() => {});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tableName, relations]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -152,18 +185,36 @@ export function FormModal({ tableName, columns, onClose, onSuccess, anchorRect }
             editableColumns.map((col) => {
               const inputType = getInputType(col.data_type);
               const val = values[col.column_name];
+              const fkOpts = fkOptions[col.column_name];
 
               return (
                 <div key={col.column_name}>
                   <label className="block text-xs font-medium text-zinc-400 mb-1.5">
-                    <span className="text-zinc-200">{col.column_name}</span>
-                    <span className="ml-2 text-[10px] text-zinc-600 font-mono">{col.data_type}</span>
+                    <span className="text-zinc-200">
+                      {fkOpts ? col.column_name.replace(/_id$/, '') : col.column_name}
+                    </span>
+                    <span className="ml-2 text-[10px] text-zinc-600 font-mono">
+                      {fkOpts ? 'linked record' : col.data_type}
+                    </span>
                     {col.is_nullable === 'YES' && (
                       <span className="ml-1 text-[10px] text-zinc-700">nullable</span>
                     )}
                   </label>
 
-                  {inputType === 'checkbox' ? (
+                  {fkOpts ? (
+                    <select
+                      value={val as string}
+                      onChange={(e) =>
+                        setValues((prev) => ({ ...prev, [col.column_name]: e.target.value }))
+                      }
+                      className="w-full px-3 py-2 rounded-lg bg-[#1a1a1a] border border-[#2a2a2a] text-zinc-100 text-xs focus:outline-none focus:border-violet-500/60 focus:ring-1 focus:ring-violet-500/30 transition-colors"
+                    >
+                      <option value="">— select —</option>
+                      {fkOpts.map((opt) => (
+                        <option key={String(opt.value)} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  ) : inputType === 'checkbox' ? (
                     <div className="flex items-center gap-2">
                       <input
                         type="checkbox"

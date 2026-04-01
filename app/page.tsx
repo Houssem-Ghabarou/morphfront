@@ -79,6 +79,7 @@ export default function Home() {
             visualCards={session.visualCards}
             onRemoveVisualCard={session.removeVisualCard}
             onVisualCardPositionChange={session.updateVisualCardPosition}
+            relations={session.relations}
           />
 
           {prefillState && (
@@ -87,6 +88,7 @@ export default function Home() {
               columns={prefillState.columns}
               prefillValues={prefillState.values}
               sessionTables={session.tables.map((t) => t.tableName)}
+              relations={session.relations}
               onConfirm={handlePrefillConfirm}
               onCancel={() => setPrefillState(null)}
             />

@@ -8,6 +8,7 @@ import type {
   TableCardData,
   ChatResponse,
   VisualCard,
+  Relation,
 } from '@/types';
 
 interface UseSessionReturn {
@@ -16,6 +17,7 @@ interface UseSessionReturn {
   messages: LocalMessage[];
   tables: TableCardData[];
   visualCards: VisualCard[];
+  relations: Relation[];
   isLoading: boolean;
   isSending: boolean;
   loadSessions: () => Promise<void>;
@@ -37,6 +39,7 @@ export function useSession(): UseSessionReturn {
   const [messages, setMessages] = useState<LocalMessage[]>([]);
   const [tables, setTables] = useState<TableCardData[]>([]);
   const [visualCards, setVisualCards] = useState<VisualCard[]>([]);
+  const [relations, setRelations] = useState<Relation[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const msgIdRef = useRef(0);
@@ -74,6 +77,7 @@ export function useSession(): UseSessionReturn {
       const detail = await api.getSession(id);
       setCurrentSessionId(id);
       setVisualCards([]);
+      setRelations(detail.relations ?? []);
 
       const localMessages: LocalMessage[] = detail.messages.map((m) => ({
         id: String(m.id),
@@ -165,6 +169,16 @@ export function useSession(): UseSessionReturn {
           )
         );
 
+        // After any create action, refresh FK relations from the DB
+        if (response.action === 'create' || response.action === 'create_many') {
+          try {
+            const { relations: fresh } = await api.getSessionRelations(currentSessionId);
+            setRelations(fresh);
+          } catch {
+            // non-critical
+          }
+        }
+
         return response;
       } catch (err) {
         console.error('Failed to send message', err);
@@ -230,6 +244,7 @@ export function useSession(): UseSessionReturn {
     messages,
     tables,
     visualCards,
+    relations,
     isLoading,
     isSending,
     loadSessions,

@@ -197,11 +197,26 @@ export function ChatPanel({
       return;
     }
 
-    if (response.action === 'create' || response.action === 'alter') {
+    if (response.action === 'create') {
       const tableName = response.schema?.tableName;
       if (tableName) {
         const pos = getNextCardPosition();
         onTableAction(tableName, pos.x, pos.y);
+      }
+    }
+
+    if (response.action === 'create_many' && response.schemas) {
+      const baseX = 60 + (existingTables.length % 3) * 380;
+      const baseY = 60 + Math.floor(existingTables.length / 3) * 320;
+      response.schemas.forEach((schema, i) => {
+        onTableAction(schema.tableName, baseX + i * 380, baseY);
+      });
+    }
+
+    if (response.action === 'alter') {
+      const tableName = response.schema?.tableName;
+      if (tableName) {
+        window.dispatchEvent(new CustomEvent('morph:refresh', { detail: { tableName } }));
       }
     }
 
@@ -221,7 +236,7 @@ export function ChatPanel({
         sql: response.sql,
       });
     }
-  }, [input, sessionId, isSending, onSend, onTableAction, getNextCardPosition, onPrefill, onQueryResult]);
+  }, [input, sessionId, isSending, onSend, onTableAction, getNextCardPosition, onPrefill, onQueryResult, existingTables]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {

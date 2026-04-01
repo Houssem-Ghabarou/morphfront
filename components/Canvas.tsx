@@ -5,7 +5,7 @@ import { TableCard } from '@/components/TableCard';
 import { StatCard } from '@/components/StatCard';
 import { BarChartCard } from '@/components/BarChartCard';
 import { QueryResultCard } from '@/components/QueryResultCard';
-import type { TableCardData, VisualCard } from '@/types';
+import type { TableCardData, VisualCard, Relation } from '@/types';
 
 interface CanvasProps {
   tables: TableCardData[];
@@ -15,15 +15,29 @@ interface CanvasProps {
   visualCards: VisualCard[];
   onRemoveVisualCard: (id: string) => void;
   onVisualCardPositionChange: (id: string, x: number, y: number) => void;
+  relations?: Relation[];
 }
 
 const MIN_SCALE = 0.2;
 const MAX_SCALE = 2.5;
 const ZERO_OFFSET = { x: 0, y: 0 };
 
-export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualCards, onRemoveVisualCard, onVisualCardPositionChange }: CanvasProps) {
+function stripPrefix(name: string) { return name.replace(/^s\d+_/, ''); }
+function describe(rel: Relation) {
+  const from = stripPrefix(rel.from);
+  const to   = stripPrefix(rel.to);
+  const col  = rel.on.replace(/_id$/, '');
+  return {
+    title: `${from} → ${to}`,
+    body:  `Each ${from.replace(/s$/, '')} is linked to a ${to.replace(/s$/, '')} via "${col}".`,
+  };
+}
+
+export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualCards, onRemoveVisualCard, onVisualCardPositionChange, relations = [] }: CanvasProps) {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
+  const [showRelations, setShowRelations] = useState(true);
+  const [hoveredRel, setHoveredRel] = useState<{ index: number; x: number; y: number } | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [spaceDown, setSpaceDown] = useState(false);
   const panStart = useRef<{ mouseX: number; mouseY: number; offsetX: number; offsetY: number } | null>(null);
@@ -188,6 +202,62 @@ export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualC
           transformOrigin: '0 0',
         }}
       >
+        {/* FK relation arrows */}
+        {relations.length > 0 && showRelations && (
+          <svg
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'visible' }}
+          >
+            <defs>
+              <marker id="fk-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="#7c3aed" opacity="0.7" />
+              </marker>
+              <marker id="fk-arrow-hover" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                <polygon points="0 0, 8 3, 0 6" fill="#a78bfa" opacity="1" />
+              </marker>
+            </defs>
+            {relations.map((rel, i) => {
+              const CARD_W = 300;
+              const HEADER_H = 20;
+              const from = tables.find((t) => t.tableName === rel.from);
+              const to   = tables.find((t) => t.tableName === rel.to);
+              if (!from || !to) return null;
+              const x1 = from.x + CARD_W / 2;
+              const y1 = from.y + HEADER_H;
+              const x2 = to.x + CARD_W / 2;
+              const y2 = to.y + HEADER_H;
+              const mx = (x1 + x2) / 2;
+              const d  = `M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`;
+              const isHovered = hoveredRel?.index === i;
+              return (
+                <g key={i}>
+                  {/* Invisible wide hit area */}
+                  <path
+                    d={d}
+                    fill="none"
+                    stroke="transparent"
+                    strokeWidth={16}
+                    style={{ pointerEvents: 'auto', cursor: 'pointer' }}
+                    onMouseEnter={(e) => setHoveredRel({ index: i, x: e.clientX, y: e.clientY })}
+                    onMouseMove={(e)  => setHoveredRel({ index: i, x: e.clientX, y: e.clientY })}
+                    onMouseLeave={()  => setHoveredRel(null)}
+                  />
+                  {/* Visible arrow */}
+                  <path
+                    d={d}
+                    fill="none"
+                    stroke={isHovered ? '#a78bfa' : '#7c3aed'}
+                    strokeWidth={isHovered ? 2.5 : 1.5}
+                    strokeOpacity={isHovered ? 0.9 : 0.5}
+                    strokeDasharray={isHovered ? '6 3' : '5 4'}
+                    markerEnd={isHovered ? 'url(#fk-arrow-hover)' : 'url(#fk-arrow)'}
+                    style={{ pointerEvents: 'none', transition: 'stroke 0.15s, stroke-width 0.15s, stroke-opacity 0.15s' }}
+                  />
+                </g>
+              );
+            })}
+          </svg>
+        )}
+
         {tables.map((table) =>
           sessionId ? (
             <div key={table.tableName} style={{ pointerEvents: 'auto' }}>
@@ -200,13 +270,13 @@ export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualC
                 onPositionChange={onPositionChange}
                 canvasOffset={ZERO_OFFSET}
                 canvasScale={scale}
+                relations={relations}
               />
             </div>
           ) : null
         )}
         {visualCards.map((card) => {
           const commonProps = {
-            key: card.id,
             id: card.id,
             title: card.title,
             rows: card.rows,
@@ -220,13 +290,66 @@ export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualC
           };
           return (
             <div key={card.id} style={{ pointerEvents: 'auto' }}>
-              {card.type === 'stat' && <StatCard {...commonProps} />}
-              {card.type === 'bar' && <BarChartCard {...commonProps} />}
-              {card.type === 'table' && <QueryResultCard {...commonProps} />}
+              {card.type === 'stat' && <StatCard key={card.id} {...commonProps} />}
+              {card.type === 'bar' && <BarChartCard key={card.id} {...commonProps} />}
+              {card.type === 'table' && <QueryResultCard key={card.id} {...commonProps} />}
             </div>
           );
         })}
       </div>
+
+      {/* Relation hover tooltip */}
+      {hoveredRel && relations[hoveredRel.index] && (() => {
+        const { title, body } = describe(relations[hoveredRel.index]);
+        return (
+          <div
+            className="fixed z-50 pointer-events-none"
+            style={{ left: hoveredRel.x + 14, top: hoveredRel.y - 10 }}
+          >
+            <div
+              className="rounded-xl border border-violet-500/30 shadow-2xl px-3.5 py-2.5"
+              style={{ background: '#0f0f13', minWidth: 160, maxWidth: 220 }}
+            >
+              <p className="text-[11px] font-semibold text-violet-300 font-mono mb-1">{title}</p>
+              <p className="text-[11px] text-zinc-400 leading-relaxed">{body}</p>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Relations toggle — only shown when there are FK relations */}
+      {relations.length > 0 && (
+        <div className="absolute top-4 right-4 pointer-events-auto select-none">
+          <button
+            onClick={() => setShowRelations((v) => !v)}
+            title={showRelations ? 'Hide relations' : 'Show relations'}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 ${
+              showRelations
+                ? 'bg-violet-600/20 border-violet-500/40 text-violet-300 hover:bg-violet-600/30'
+                : 'bg-[#111] border-[#2a2a2a] text-zinc-500 hover:border-violet-500/30 hover:text-zinc-300'
+            }`}
+          >
+            {/* Link icon */}
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+            </svg>
+            <span>{showRelations ? 'Relations on' : 'Relations off'}</span>
+            {/* Toggle pill */}
+            <span
+              className={`inline-flex w-7 h-4 rounded-full transition-colors duration-200 relative ${
+                showRelations ? 'bg-violet-500' : 'bg-zinc-700'
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform duration-200 ${
+                  showRelations ? 'translate-x-3.5' : 'translate-x-0.5'
+                }`}
+              />
+            </span>
+          </button>
+        </div>
+      )}
 
       <div className="absolute bottom-4 right-4 flex flex-col items-end gap-1 text-[10px] text-zinc-700 select-none pointer-events-none">
         <div className="flex items-center gap-1.5">

@@ -4,6 +4,7 @@ import type {
   ChatResponse,
   TableSchema,
   DataRow,
+  Relation,
 } from '@/types';
 
 const BASE_URL = 'http://localhost:3001';
@@ -75,5 +76,9 @@ export const api = {
 
   getSchema(tableName: string): Promise<TableSchema> {
     return request(`/api/schema/${tableName}`);
+  },
+
+  getSessionRelations(sessionId: number): Promise<{ relations: Relation[] }> {
+    return request(`/api/sessions/${sessionId}/relations`);
   },
 };

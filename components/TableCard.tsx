@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { FormModal } from '@/components/FormModal';
-import type { SchemaColumn, DataRow } from '@/types';
+import type { SchemaColumn, DataRow, Relation } from '@/types';
 
 interface TableCardProps {
   tableName: string;
@@ -15,6 +15,7 @@ interface TableCardProps {
   canvasOffset: { x: number; y: number };
   /** CSS transform scale on the canvas layer; drag deltas are divided by this */
   canvasScale?: number;
+  relations?: Relation[];
 }
 
 export function TableCard({
@@ -22,6 +23,7 @@ export function TableCard({
   x,
   y,
   sessionId,
+  relations = [],
   isNew = false,
   onPositionChange,
   canvasOffset,
@@ -169,7 +171,7 @@ export function TableCard({
             </svg>
           </div>
           <span className="text-xs font-semibold text-zinc-200 font-mono truncate flex-1">
-            {tableName}
+            {tableName.replace(/^s\d+_/, '')}
           </span>
           <span className="text-[10px] text-zinc-600 shrink-0">
             {rows.length} row{rows.length !== 1 ? 's' : ''}
@@ -272,6 +274,7 @@ export function TableCard({
         <FormModal
           tableName={tableName}
           columns={columns}
+          relations={relations}
           anchorRect={modalAnchor}
           onClose={() => {
             setShowModal(false);
