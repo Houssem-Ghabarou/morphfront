@@ -44,6 +44,13 @@ export const api = {
     return request(`/api/sessions/${id}`, { method: 'DELETE' });
   },
 
+  renameSession(id: number, name: string): Promise<{ ok: boolean }> {
+    return request(`/api/sessions/${id}/name`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name }),
+    });
+  },
+
   updateTablePosition(
     sessionId: number,
     tableName: string,

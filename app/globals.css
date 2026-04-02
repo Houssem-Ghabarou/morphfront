@@ -1,14 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0a0a0a;
-  --foreground: #e4e4e7;
-  --card: #111111;
-  --card-border: #1a1a1a;
+  --background: #0d0d12;
+  --canvas-bg: #141420;
+  --foreground: #e2e2e8;
+  --card: #1a1a28;
+  --card-border: #26263a;
   --accent: #7c3aed;
   --accent-light: #8b5cf6;
-  --muted: #71717a;
-  --dot-color: rgba(255, 255, 255, 0.06);
+  --muted: #6b6b7a;
+  --sidebar-bg: #0a0a0f;
+  --dot-color: rgba(139, 92, 246, 0.12);
 }
 
 @theme inline {
@@ -41,27 +43,43 @@ body {
 }
 
 .canvas-bg {
-  background-color: #0a0a0a;
+  background-color: var(--canvas-bg);
   background-image: radial-gradient(
     circle,
-    rgba(255, 255, 255, 0.07) 1px,
+    var(--dot-color) 1px,
     transparent 1px
   );
-  background-size: 28px 28px;
+  background-size: 24px 24px;
 }
 
 .glass-card {
-  background: #141414;
-  border: 1px solid #222222;
+  background: var(--card);
+  border: 1px solid var(--card-border);
   box-shadow:
-    0 4px 6px -1px rgba(0, 0, 0, 0.4),
-    0 2px 4px -2px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    0 4px 16px -4px rgba(0, 0, 0, 0.6),
+    0 2px 4px -2px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-item-active {
+  background: rgba(124, 58, 237, 0.1);
+  border-left: 2px solid #7c3aed;
+}
+
+.sidebar-item {
+  border-left: 2px solid transparent;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.sidebar-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-left-color: rgba(124, 58, 237, 0.3);
+  color: #d4d4e0;
 }
 
 .scrollbar-thin {
   scrollbar-width: thin;
-  scrollbar-color: #2a2a2a transparent;
+  scrollbar-color: #252535 transparent;
 }
 
 .scrollbar-thin::-webkit-scrollbar {
@@ -74,12 +92,12 @@ body {
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: #2a2a2a;
+  background: #252535;
   border-radius: 999px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: #3a3a3a;
+  background: #35354a;
 }
 
 @keyframes fadeIn {
@@ -117,29 +135,34 @@ body {
   }
 }
 
+@keyframes shimmer {
+  from { background-position: -200% center; }
+  to { background-position: 200% center; }
+}
+
 .animate-fade-in {
-  animation: fadeIn 0.25s ease forwards;
+  animation: fadeIn 0.22s ease forwards;
 }
 
 .animate-card-appear {
-  animation: cardAppear 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: cardAppear 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .typing-dot {
   display: inline-block;
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: #7c3aed;
   animation: typingDot 1.2s infinite ease-in-out;
 }
 
 .typing-dot:nth-child(2) {
-  animation-delay: 0.2s;
+  animation-delay: 0.18s;
 }
 
 .typing-dot:nth-child(3) {
-  animation-delay: 0.4s;
+  animation-delay: 0.36s;
 }
 
 .drag-handle {
@@ -148,4 +171,10 @@ body {
 
 .drag-handle:active {
   cursor: grabbing;
+}
+
+/* Focus ring utility */
+.focus-ring:focus-visible {
+  outline: 2px solid rgba(124, 58, 237, 0.6);
+  outline-offset: 2px;
 }

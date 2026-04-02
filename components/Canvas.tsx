@@ -184,8 +184,8 @@ export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualC
       ) : tables.length === 0 ? (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="flex flex-col items-center gap-4 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-[#111] border border-[#1e1e1e] flex items-center justify-center shadow-xl">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3f3f46" strokeWidth="1.5">
+            <div className="w-16 h-16 rounded-2xl bg-[#1a1a28] border border-[#26263a] flex items-center justify-center shadow-xl">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#3f3f56" strokeWidth="1.5">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
               </svg>
             </div>
@@ -195,7 +195,7 @@ export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualC
                 Type a prompt below to create your first table
               </p>
             </div>
-            <div className="flex items-center gap-2 text-xs text-zinc-700 bg-[#111] border border-[#1e1e1e] rounded-lg px-4 py-2">
+            <div className="flex items-center gap-2 text-xs text-zinc-500 bg-[#1a1a28] border border-[#26263a] rounded-lg px-4 py-2">
               <span className="font-mono text-violet-500/70">Try:</span>
               <span className="italic">&ldquo;Create a customers table with name, email and plan&rdquo;</span>
             </div>
@@ -328,7 +328,7 @@ export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualC
           >
             <div
               className="rounded-xl border border-violet-500/30 shadow-2xl px-3.5 py-2.5"
-              style={{ background: '#0f0f13', minWidth: 160, maxWidth: 220 }}
+              style={{ background: '#1a1a28', minWidth: 160, maxWidth: 220 }}
             >
               <p className="text-[11px] font-semibold text-violet-300 font-mono mb-1">{title}</p>
               <p className="text-[11px] text-zinc-400 leading-relaxed">{body}</p>
@@ -341,7 +341,7 @@ export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualC
       {selectedRow && (
         <div className="absolute top-4 left-4 z-40 pointer-events-auto select-none max-w-[min(420px,calc(100%-8rem))]">
           <div
-            className="flex items-center gap-2 px-3 py-2 rounded-xl border border-violet-500/35 bg-[#0f0f13]/95 backdrop-blur-sm shadow-lg"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl border border-violet-500/35 bg-[#0d0d12]/95 backdrop-blur-sm shadow-lg"
           >
             <div className="w-2 h-2 rounded-full bg-violet-500 shrink-0 animate-pulse" />
             <div className="min-w-0 flex-1">

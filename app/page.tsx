@@ -69,11 +69,12 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#0a0a0a]">
+    <div className="flex h-screen overflow-hidden bg-[#141420]">
       <Sidebar
         sessions={session.sessions}
         currentSessionId={session.currentSessionId}
         onNewSession={session.createSession}
+        onRenameSession={session.renameSession}
         onSelectSession={session.switchSession}
         onDeleteSession={session.deleteSession}
       />

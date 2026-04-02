@@ -22,6 +22,7 @@ interface UseSessionReturn {
   isSending: boolean;
   loadSessions: () => Promise<void>;
   createSession: () => Promise<number>;
+  renameSession: (id: number, name: string) => Promise<void>;
   switchSession: (id: number) => Promise<void>;
   deleteSession: (id: number) => Promise<void>;
   sendMessage: (text: string) => Promise<ChatResponse | null>;
@@ -227,6 +228,13 @@ export function useSession(): UseSessionReturn {
     );
   }, []);
 
+  const renameSession = useCallback(async (id: number, name: string) => {
+    await api.renameSession(id, name);
+    setSessions((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, name } : s))
+    );
+  }, []);
+
   const addVisualCard = useCallback((card: VisualCard) => {
     setVisualCards((prev) => [card, ...prev]);
   }, []);
@@ -250,6 +258,7 @@ export function useSession(): UseSessionReturn {
     isSending,
     loadSessions,
     createSession,
+    renameSession,
     switchSession,
     deleteSession,
     sendMessage,

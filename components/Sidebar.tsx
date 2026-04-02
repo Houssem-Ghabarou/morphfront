@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import type { Session } from '@/types';
 
 interface SidebarProps {
   sessions: Session[];
   currentSessionId: number | null;
   onNewSession: () => Promise<number>;
+  onRenameSession: (id: number, name: string) => Promise<void>;
   onSelectSession: (id: number) => Promise<void>;
   onDeleteSession: (id: number) => Promise<void>;
 }
@@ -19,19 +21,172 @@ function timeAgo(dateStr: string): string {
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
   const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
+  if (days < 30) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString('en', { month: 'short', day: 'numeric' });
+}
+
+// Linear-style icons
+const Icons = {
+  Logo: () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2L2 7l10 5 10-5-10-5z" />
+      <path d="M2 17l10 5 10-5" />
+      <path d="M2 12l10 5 10-5" />
+    </svg>
+  ),
+  Project: () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </svg>
+  ),
+  Plus: () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  ),
+  ChevronLeft: () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M15 18l-6-6 6-6" />
+    </svg>
+  ),
+  ChevronRight: () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 18l6-6-6-6" />
+    </svg>
+  ),
+  Trash: () => (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+    </svg>
+  ),
+  Close: () => (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M18 6L6 18M6 6l12 12" />
+    </svg>
+  ),
+};
+
+// New Project modal — portalled to body
+function NewProjectModal({
+  onConfirm,
+  onCancel,
+  isCreating,
+}: {
+  onConfirm: (name: string) => void;
+  onCancel: () => void;
+  isCreating: boolean;
+}) {
+  const [name, setName] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onCancel]);
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    onConfirm(trimmed);
+  };
+
+  if (!mounted) return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)' }}
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
+    >
+      <div
+        className="w-[360px] rounded-2xl border border-[#1e1e2e] shadow-2xl animate-fade-in overflow-hidden"
+        style={{ background: '#13131c' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e1e2e]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-violet-600/20 border border-violet-500/30 flex items-center justify-center text-violet-400">
+              <Icons.Project />
+            </div>
+            <div>
+              <h2 className="text-[13px] font-semibold text-zinc-100">New Project</h2>
+              <p className="text-[10px] text-zinc-600 mt-0.5">Give your workspace a name</p>
+            </div>
+          </div>
+          <button
+            onClick={onCancel}
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-600 hover:text-zinc-300 hover:bg-white/5 transition-all duration-150 cursor-pointer"
+          >
+            <Icons.Close />
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="px-5 py-4">
+          <label className="block text-[11px] font-medium text-zinc-500 mb-2">
+            Project name
+          </label>
+          <input
+            ref={inputRef}
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Gym Management, CRM, Inventory…"
+            maxLength={60}
+            className="w-full px-3.5 py-2.5 rounded-xl bg-[#0d0d12] border border-[#1e1e2e] text-zinc-100 text-[13px] placeholder-zinc-700 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 transition-all duration-150"
+          />
+
+          <div className="flex items-center justify-end gap-2 mt-4">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-3.5 py-2 rounded-lg text-[12px] text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all duration-150 cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!name.trim() || isCreating}
+              className="px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-[12px] font-medium transition-all duration-150 flex items-center gap-1.5 cursor-pointer"
+            >
+              {isCreating && (
+                <div className="w-3 h-3 border border-white/40 border-t-white rounded-full animate-spin" />
+              )}
+              Create Project
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>,
+    document.body
+  );
 }
 
 export function Sidebar({
   sessions,
   currentSessionId,
   onNewSession,
+  onRenameSession,
   onSelectSession,
   onDeleteSession,
 }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [showNewModal, setShowNewModal] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
   const handleDelete = async (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
@@ -43,147 +198,190 @@ export function Sidebar({
     }
   };
 
+  const handleCreateProject = async (name: string) => {
+    setIsCreating(true);
+    try {
+      const id = await onNewSession();
+      await onRenameSession(id, name);
+      setShowNewModal(false);
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   if (collapsed) {
     return (
-      <div className="flex flex-col items-center py-4 w-14 border-r border-[#1a1a1a] bg-[#0d0d0d] gap-3">
-        <button
-          onClick={() => setCollapsed(false)}
-          className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-white/5 transition-colors"
-          title="Expand sidebar"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <path d="M9 3v18" />
-          </svg>
-        </button>
-        <button
-          onClick={onNewSession}
-          className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-400 hover:text-violet-400 hover:bg-violet-500/10 transition-colors"
-          title="New chat"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-        </button>
-      </div>
+      <>
+        <div className="flex flex-col items-center py-3 w-12 shrink-0 border-r border-[#1a1a24] bg-[#0a0a0f] gap-2">
+          <button
+            onClick={() => setCollapsed(false)}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all duration-150 cursor-pointer"
+            title="Expand sidebar"
+          >
+            <Icons.ChevronRight />
+          </button>
+          <div className="w-px h-3 bg-[#1e1e2e]" />
+          <button
+            onClick={() => setShowNewModal(true)}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-500 hover:text-violet-400 hover:bg-violet-500/10 transition-all duration-150 cursor-pointer"
+            title="New project"
+          >
+            <Icons.Plus />
+          </button>
+          {sessions.slice(0, 8).map((s) => (
+            <button
+              key={s.id}
+              onClick={() => onSelectSession(s.id)}
+              title={s.name || 'Untitled'}
+              className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-150 cursor-pointer ${
+                s.id === currentSessionId
+                  ? 'bg-violet-600/20 text-violet-400'
+                  : 'text-zinc-600 hover:text-zinc-400 hover:bg-white/5'
+              }`}
+            >
+              <Icons.Project />
+            </button>
+          ))}
+        </div>
+        {showNewModal && (
+          <NewProjectModal
+            onConfirm={handleCreateProject}
+            onCancel={() => setShowNewModal(false)}
+            isCreating={isCreating}
+          />
+        )}
+      </>
     );
   }
 
   return (
-    <div className="flex flex-col w-[280px] shrink-0 border-r border-[#1a1a1a] bg-[#0d0d0d] overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-4 border-b border-[#1a1a1a]">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-md bg-violet-600 flex items-center justify-center">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="white">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="white" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+    <>
+      <div className="flex flex-col w-[260px] shrink-0 border-r border-[#1a1a24] bg-[#0a0a0f] overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3.5 border-b border-[#1a1a24]">
+          <div className="flex items-center gap-2.5">
+            <div className="w-6 h-6 rounded-lg bg-violet-600 flex items-center justify-center text-white shadow-[0_0_10px_rgba(124,58,237,0.4)]">
+              <Icons.Logo />
+            </div>
+            <div>
+              <span className="font-semibold text-[13px] text-zinc-100 tracking-tight leading-none">Morph</span>
+              <p className="text-[9px] text-zinc-600 leading-none mt-0.5">Business OS</p>
+            </div>
           </div>
-          <span className="font-semibold text-sm text-zinc-100 tracking-tight">Morph</span>
+          <button
+            onClick={() => setCollapsed(true)}
+            className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-600 hover:text-zinc-400 hover:bg-white/5 transition-all duration-150 cursor-pointer"
+            title="Collapse sidebar"
+          >
+            <Icons.ChevronLeft />
+          </button>
         </div>
-        <button
-          onClick={() => setCollapsed(true)}
-          className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-colors"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
-        </button>
-      </div>
 
-      <div className="px-3 pt-3 pb-2">
-        <button
-          onClick={onNewSession}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-violet-600/10 hover:bg-violet-600/20 border border-violet-600/20 hover:border-violet-600/40 text-violet-400 hover:text-violet-300 text-sm font-medium transition-all duration-150"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-          New Chat
-        </button>
-      </div>
+        {/* New Project button */}
+        <div className="px-3 pt-3 pb-2">
+          <button
+            onClick={() => setShowNewModal(true)}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg border border-dashed border-violet-600/25 text-zinc-500 hover:text-violet-300 hover:border-violet-500/50 hover:bg-violet-500/6 text-xs font-medium transition-all duration-150 group cursor-pointer"
+          >
+            <span className="w-5 h-5 flex items-center justify-center rounded border border-violet-500/30 group-hover:border-violet-400/60 text-violet-500 group-hover:text-violet-400 transition-all duration-150">
+              <Icons.Plus />
+            </span>
+            <span>New Project</span>
+          </button>
+        </div>
 
-      <div className="flex-1 overflow-y-auto scrollbar-thin px-2 pb-3">
-        {sessions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-zinc-600 text-xs">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mb-3 opacity-40">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </svg>
-            <span>No sessions yet</span>
+        {/* Section label */}
+        {sessions.length > 0 && (
+          <div className="px-4 pt-3 pb-1.5">
+            <span className="text-[9px] font-semibold uppercase tracking-widest text-zinc-700">Projects</span>
           </div>
-        ) : (
-          <ul className="space-y-0.5 mt-1">
-            {sessions.map((session) => {
-              const isActive = session.id === currentSessionId;
-              const isHovered = hoveredId === session.id;
+        )}
 
-              return (
-                <li key={session.id}>
-                  <div
-                    className={`w-full flex items-stretch gap-0.5 rounded-lg transition-all duration-100 group ${
-                      isActive
-                        ? 'bg-white/8 text-zinc-100'
-                        : 'text-zinc-400 hover:bg-white/5 hover:text-zinc-200'
-                    }`}
-                    onMouseEnter={() => setHoveredId(session.id)}
-                    onMouseLeave={() => setHoveredId(null)}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => onSelectSession(session.id)}
-                      className="min-w-0 flex-1 flex items-center gap-2 px-3 py-2.5 rounded-lg text-left"
+        {/* Session list */}
+        <div className="flex-1 overflow-y-auto scrollbar-thin px-2 pb-3">
+          {sessions.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-zinc-700 gap-3">
+              <div className="w-10 h-10 rounded-xl border border-[#1e1e2e] flex items-center justify-center opacity-50">
+                <Icons.Project />
+              </div>
+              <div className="text-center">
+                <p className="text-xs font-medium text-zinc-600">No projects yet</p>
+                <p className="text-[10px] text-zinc-700 mt-0.5">Create your first project above</p>
+              </div>
+            </div>
+          ) : (
+            <ul className="space-y-px mt-1">
+              {sessions.map((session) => {
+                const isActive = session.id === currentSessionId;
+                const isHovered = hoveredId === session.id;
+
+                return (
+                  <li key={session.id}>
+                    <div
+                      className={`sidebar-item w-full flex items-stretch gap-0.5 rounded-lg group pl-1 ${
+                        isActive ? 'sidebar-item-active !bg-violet-600/10' : ''
+                      }`}
+                      onMouseEnter={() => setHoveredId(session.id)}
+                      onMouseLeave={() => setHoveredId(null)}
                     >
-                      <svg
-                        width="13"
-                        height="13"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        className={`shrink-0 ${isActive ? 'text-violet-400' : 'text-zinc-600'}`}
-                      >
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                      </svg>
-
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium truncate leading-tight">
-                          {session.name || 'Untitled'}
-                        </p>
-                        <p className="text-[10px] text-zinc-600 mt-0.5">
-                          {timeAgo(session.updated_at)}
-                        </p>
-                      </div>
-                    </button>
-
-                    {(isHovered || isActive) && (
                       <button
                         type="button"
-                        onClick={(e) => handleDelete(e, session.id)}
-                        disabled={deletingId === session.id}
-                        className="shrink-0 w-8 h-8 mr-1 flex items-center justify-center rounded text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                        aria-label="Delete session"
+                        onClick={() => onSelectSession(session.id)}
+                        className="min-w-0 flex-1 flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left cursor-pointer"
                       >
-                        {deletingId === session.id ? (
-                          <div className="w-3 h-3 border border-zinc-600 border-t-transparent rounded-full animate-spin" />
-                        ) : (
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                            <path d="M18 6L6 18M6 6l12 12" />
-                          </svg>
-                        )}
+                        <span className={`shrink-0 transition-colors duration-150 ${isActive ? 'text-violet-400' : 'text-zinc-600 group-hover:text-zinc-500'}`}>
+                          <Icons.Project />
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-[11px] font-medium truncate leading-tight transition-colors duration-150 ${isActive ? 'text-zinc-100' : 'text-zinc-400 group-hover:text-zinc-200'}`}>
+                            {session.name || 'Untitled'}
+                          </p>
+                          <p className="text-[9px] text-zinc-700 mt-0.5">
+                            {timeAgo(session.updated_at)}
+                          </p>
+                        </div>
                       </button>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+
+                      {(isHovered || isActive) && (
+                        <button
+                          type="button"
+                          onClick={(e) => handleDelete(e, session.id)}
+                          disabled={deletingId === session.id}
+                          className="shrink-0 w-7 h-7 mr-1 my-auto flex items-center justify-center rounded-md text-zinc-700 hover:text-red-400 hover:bg-red-500/10 transition-all duration-150 cursor-pointer"
+                          aria-label="Delete project"
+                        >
+                          {deletingId === session.id ? (
+                            <div className="w-3 h-3 border border-zinc-600 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Icons.Trash />
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="px-4 py-3 border-t border-[#1a1a24] flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/80" />
+            <p className="text-[9px] text-zinc-700">Connected</p>
+          </div>
+          <p className="text-[9px] text-zinc-800 font-mono">v0.1</p>
+        </div>
       </div>
 
-      <div className="px-4 py-3 border-t border-[#1a1a1a]">
-        <p className="text-[10px] text-zinc-700 text-center">
-          Morph · LLM Business OS
-        </p>
-      </div>
-    </div>
+      {showNewModal && (
+        <NewProjectModal
+          onConfirm={handleCreateProject}
+          onCancel={() => setShowNewModal(false)}
+          isCreating={isCreating}
+        />
+      )}
+    </>
   );
 }

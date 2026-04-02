@@ -143,7 +143,7 @@ export function FormModal({ tableName, columns, relations, onClose, onSuccess, a
   const content = (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-[55] bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-[55] bg-black/70 backdrop-blur-md"
       onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
     >
       <div
@@ -152,7 +152,7 @@ export function FormModal({ tableName, columns, relations, onClose, onSuccess, a
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex shrink-0 items-center justify-between px-5 py-4 border-b border-[#222]">
+        <div className="flex shrink-0 items-center justify-between px-5 py-4 border-b border-[#1e1e2e]">
           <div>
             <h2 className="text-sm font-semibold text-zinc-100">
               {isEditing ? `Edit ${displayName}` : `New ${displayName}`}
@@ -198,7 +198,7 @@ export function FormModal({ tableName, columns, relations, onClose, onSuccess, a
                       <select
                         value={val as string}
                         onChange={(e) => setValues((prev) => ({ ...prev, [col.column_name]: e.target.value }))}
-                        className="w-full px-3 py-2 rounded-lg bg-[#1a1a1a] border border-[#2a2a2a] text-zinc-100 text-xs focus:outline-none focus:border-violet-500/60 focus:ring-1 focus:ring-violet-500/30 transition-colors"
+                        className="w-full px-3 py-2 rounded-lg bg-[#13131c] border border-[#1e1e2e] text-zinc-100 text-xs focus:outline-none focus:border-violet-500/60 focus:ring-1 focus:ring-violet-500/30 transition-colors"
                       >
                         <option value="">— select —</option>
                         {fkOpts.map((opt) => (
@@ -221,7 +221,7 @@ export function FormModal({ tableName, columns, relations, onClose, onSuccess, a
                         value={val as string}
                         onChange={(e) => setValues((prev) => ({ ...prev, [col.column_name]: e.target.value }))}
                         placeholder={col.is_nullable === 'YES' ? 'optional' : `Enter ${fieldLabel.toLowerCase()}…`}
-                        className="w-full px-3 py-2 rounded-lg bg-[#1a1a1a] border border-[#2a2a2a] text-zinc-100 text-xs placeholder-zinc-600 focus:outline-none focus:border-violet-500/60 focus:ring-1 focus:ring-violet-500/30 transition-colors"
+                        className="w-full px-3 py-2 rounded-lg bg-[#13131c] border border-[#1e1e2e] text-zinc-100 text-xs placeholder-zinc-600 focus:outline-none focus:border-violet-500/60 focus:ring-1 focus:ring-violet-500/30 transition-colors"
                       />
                     )}
                   </div>
