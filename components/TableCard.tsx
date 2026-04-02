@@ -3,7 +3,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { FormModal } from '@/components/FormModal';
+import { filterRowsForAncestorSelection } from '@/lib/relationFilter';
 import type { SchemaColumn, DataRow, Relation } from '@/types';
+
+export interface RowSelectionContext {
+  tableName: string;
+  row: Record<string, unknown>;
+}
 
 interface TableCardProps {
   tableName: string;
@@ -16,6 +22,10 @@ interface TableCardProps {
   /** CSS transform scale on the canvas layer; drag deltas are divided by this */
   canvasScale?: number;
   relations?: Relation[];
+  /** When set, child tables filter rows linked to this parent row (FK graph). */
+  selectedContext?: RowSelectionContext | null;
+  /** Click a data row to set / toggle selection (handled in Canvas). */
+  onRowSelect?: (row: Record<string, unknown>) => void;
 }
 
 export function TableCard({
@@ -28,9 +38,12 @@ export function TableCard({
   onPositionChange,
   canvasOffset,
   canvasScale = 1,
+  selectedContext = null,
+  onRowSelect,
 }: TableCardProps) {
   const [columns, setColumns] = useState<SchemaColumn[]>([]);
   const [rows, setRows] = useState<DataRow[]>([]);
+  const [displayRows, setDisplayRows] = useState<DataRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [modalAnchor, setModalAnchor] = useState<DOMRect | null>(null);
@@ -81,6 +94,36 @@ export function TableCard({
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function applyFilter() {
+      if (!selectedContext) {
+        setDisplayRows(rows);
+        return;
+      }
+      if (tableName === selectedContext.tableName) {
+        setDisplayRows(rows);
+        return;
+      }
+      try {
+        const filtered = await filterRowsForAncestorSelection(
+          tableName,
+          rows,
+          selectedContext,
+          relations,
+          (t) => api.getTableData(t)
+        );
+        if (!cancelled) setDisplayRows(filtered);
+      } catch {
+        if (!cancelled) setDisplayRows(rows);
+      }
+    }
+    applyFilter();
+    return () => {
+      cancelled = true;
+    };
+  }, [rows, tableName, selectedContext, relations]);
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -174,7 +217,12 @@ export function TableCard({
             {tableName.replace(/^s\d+_/, '')}
           </span>
           <span className="text-[10px] text-zinc-600 shrink-0">
-            {rows.length} row{rows.length !== 1 ? 's' : ''}
+            {selectedContext &&
+            tableName !== selectedContext.tableName &&
+            displayRows.length !== rows.length
+              ? `${displayRows.length} / ${rows.length}`
+              : `${rows.length}`}{' '}
+            row{rows.length !== 1 ? 's' : ''}
           </span>
         </div>
 
@@ -203,20 +251,34 @@ export function TableCard({
                 </tr>
               </thead>
               <tbody>
-                {rows.length === 0 ? (
+                {displayRows.length === 0 ? (
                   <tr>
                     <td
                       colSpan={Math.max(displayColumns.length, 1)}
                       className="px-3 py-4 text-center text-zinc-600 text-[10px]"
                     >
-                      No rows yet
+                      {rows.length === 0 ? 'No rows yet' : 'No rows match the selected parent'}
                     </td>
                   </tr>
                 ) : (
-                  rows.map((row, i) => (
+                  displayRows.map((row, i) => {
+                    const selectedHere =
+                      selectedContext?.tableName === tableName &&
+                      selectedContext.row.id != null &&
+                      row.id === selectedContext.row.id;
+                    return (
                     <tr
-                      key={i}
-                      className="border-b border-[#1a1a1a] hover:bg-white/[0.02] transition-colors"
+                      key={row.id != null ? String(row.id) : i}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRowSelect?.(row);
+                      }}
+                      className={`border-b border-[#1a1a1a] transition-colors cursor-pointer ${
+                        selectedHere
+                          ? 'bg-violet-500/15 hover:bg-violet-500/20'
+                          : 'hover:bg-white/[0.02]'
+                      }`}
+                      title={onRowSelect ? 'Click to filter related tables' : undefined}
                     >
                       {displayColumns.map((col) => {
                         const val = row[col.column_name];
@@ -244,7 +306,8 @@ export function TableCard({
                         );
                       })}
                     </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
             </table>

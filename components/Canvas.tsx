@@ -36,6 +36,11 @@ function describe(rel: Relation) {
 export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualCards, onRemoveVisualCard, onVisualCardPositionChange, relations = [] }: CanvasProps) {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
+  /** Click a row in any table to filter descendant tables along FK links (e.g. pick a client → meals / programs). */
+  const [selectedRow, setSelectedRow] = useState<{
+    tableName: string;
+    row: Record<string, unknown>;
+  } | null>(null);
   const [showRelations, setShowRelations] = useState(true);
   const [hoveredRel, setHoveredRel] = useState<{ index: number; x: number; y: number } | null>(null);
   const [isPanning, setIsPanning] = useState(false);
@@ -125,6 +130,10 @@ export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualC
       window.removeEventListener('mouseup', up);
     };
   }, [isPanning]);
+
+  useEffect(() => {
+    setSelectedRow(null);
+  }, [sessionId]);
 
   useEffect(() => {
     const el = canvasRef.current;
@@ -271,6 +280,17 @@ export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualC
                 canvasOffset={ZERO_OFFSET}
                 canvasScale={scale}
                 relations={relations}
+                selectedContext={selectedRow}
+                onRowSelect={(row) => {
+                  if (
+                    selectedRow?.tableName === table.tableName &&
+                    selectedRow.row.id === row.id
+                  ) {
+                    setSelectedRow(null);
+                  } else {
+                    setSelectedRow({ tableName: table.tableName, row });
+                  }
+                }}
               />
             </div>
           ) : null
@@ -316,6 +336,33 @@ export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualC
           </div>
         );
       })()}
+
+      {/* Parent row filter — FK-linked tables show only rows for the selected record */}
+      {selectedRow && (
+        <div className="absolute top-4 left-4 z-40 pointer-events-auto select-none max-w-[min(420px,calc(100%-8rem))]">
+          <div
+            className="flex items-center gap-2 px-3 py-2 rounded-xl border border-violet-500/35 bg-[#0f0f13]/95 backdrop-blur-sm shadow-lg"
+          >
+            <div className="w-2 h-2 rounded-full bg-violet-500 shrink-0 animate-pulse" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] text-zinc-500 uppercase tracking-wide">Filter from parent</p>
+              <p className="text-xs text-zinc-200 font-mono truncate">
+                {stripPrefix(selectedRow.tableName)}
+                {typeof selectedRow.row.name === 'string' && (
+                  <span className="text-zinc-400"> · {String(selectedRow.row.name)}</span>
+                )}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedRow(null)}
+              className="shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-medium text-zinc-400 hover:text-white hover:bg-white/10 border border-[#2a2a2a] transition-colors"
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Relations toggle — only shown when there are FK relations */}
       {relations.length > 0 && (
