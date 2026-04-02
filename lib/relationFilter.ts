@@ -40,8 +40,10 @@ export function parentLinkDisplayValue(
   childFkColumn: string
 ): string | null {
   const fk = childFkColumn.toLowerCase();
+  // Strip _ref suffix for pattern matching (order_ref → order, user_ref → user)
+  const fkBase = fk.endsWith('_ref') ? fk.slice(0, -4) : fk;
 
-  if (fk === 'client' || fk.endsWith('_client')) {
+  if (fkBase === 'client' || fk.endsWith('_client')) {
     const n = parentRow.name;
     if (typeof n === 'string' && n.length) return n;
   }
