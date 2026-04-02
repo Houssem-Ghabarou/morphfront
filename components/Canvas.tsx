@@ -16,6 +16,8 @@ interface CanvasProps {
   onRemoveVisualCard: (id: string) => void;
   onVisualCardPositionChange: (id: string, x: number, y: number) => void;
   relations?: Relation[];
+  onAutoLayout?: () => void;
+  onOpenDashboard?: () => void;
 }
 
 const MIN_SCALE = 0.2;
@@ -33,7 +35,7 @@ function describe(rel: Relation) {
   };
 }
 
-export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualCards, onRemoveVisualCard, onVisualCardPositionChange, relations = [] }: CanvasProps) {
+export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualCards, onRemoveVisualCard, onVisualCardPositionChange, relations = [], onAutoLayout, onOpenDashboard }: CanvasProps) {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
   /** Click a row in any table to filter descendant tables along FK links (e.g. pick a client → meals / programs). */
@@ -364,9 +366,43 @@ export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualC
         </div>
       )}
 
-      {/* Relations toggle — only shown when there are FK relations */}
-      {relations.length > 0 && (
-        <div className="absolute top-4 right-4 pointer-events-auto select-none">
+      {/* Toolbar — top-right */}
+      <div className="absolute top-4 right-4 pointer-events-auto select-none flex items-center gap-2">
+        {/* Auto-layout button */}
+        {tables.length > 0 && onAutoLayout && (
+          <button
+            onClick={onAutoLayout}
+            title="Auto-arrange layout"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 bg-[#111] border-[#2a2a2a] text-zinc-500 hover:border-violet-500/30 hover:text-violet-300 hover:bg-violet-600/15"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+              <rect x="14" y="14" width="7" height="7" rx="1" />
+            </svg>
+            <span>Auto Layout</span>
+          </button>
+        )}
+
+        {/* Open dashboard button */}
+        {tables.length > 0 && onOpenDashboard && (
+          <button
+            onClick={onOpenDashboard}
+            title="Open as standalone dashboard"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 bg-[#111] border-[#2a2a2a] text-zinc-500 hover:border-emerald-500/30 hover:text-emerald-300 hover:bg-emerald-600/15"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+              <polyline points="15 3 21 3 21 9" />
+              <line x1="10" y1="14" x2="21" y2="3" />
+            </svg>
+            <span>Dashboard</span>
+          </button>
+        )}
+
+        {/* Relations toggle */}
+        {relations.length > 0 && (
           <button
             onClick={() => setShowRelations((v) => !v)}
             title={showRelations ? 'Hide relations' : 'Show relations'}
@@ -376,13 +412,11 @@ export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualC
                 : 'bg-[#111] border-[#2a2a2a] text-zinc-500 hover:border-violet-500/30 hover:text-zinc-300'
             }`}
           >
-            {/* Link icon */}
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
               <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
             </svg>
             <span>{showRelations ? 'Relations on' : 'Relations off'}</span>
-            {/* Toggle pill */}
             <span
               className={`inline-flex w-7 h-4 rounded-full transition-colors duration-200 relative ${
                 showRelations ? 'bg-violet-500' : 'bg-zinc-700'
@@ -395,8 +429,8 @@ export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualC
               />
             </span>
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="absolute bottom-4 right-4 flex flex-col items-end gap-1 text-[10px] text-zinc-700 select-none pointer-events-none">
         <div className="flex items-center gap-1.5">

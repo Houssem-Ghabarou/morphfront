@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useSession } from '@/hooks/useSession';
 import { api } from '@/lib/api';
 import { Sidebar } from '@/components/Sidebar';
@@ -44,6 +44,51 @@ export default function Home() {
     window.dispatchEvent(new CustomEvent('morph:refresh', { detail: { tableName } }));
     setPrefillState(null);
   };
+
+  const handleAutoLayout = useCallback(async () => {
+    const tables = session.tables;
+    const visuals = session.visualCards;
+    if (tables.length === 0 && visuals.length === 0) return;
+
+    const GAP = 40;
+    const TABLE_W = 340;
+    const TABLE_H = 320;
+    const VISUAL_W = 340;
+    const VISUAL_H = 220;
+    const START_X = 60;
+    const START_Y = 60;
+
+    const totalItems = tables.length + visuals.length;
+    const cols = Math.max(1, Math.min(4, Math.ceil(Math.sqrt(totalItems))));
+
+    tables.forEach((table, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const newX = START_X + col * (TABLE_W + GAP);
+      const newY = START_Y + row * (TABLE_H + GAP);
+      session.updateTablePosition(table.tableName, newX, newY);
+      if (session.currentSessionId) {
+        api.updateTablePosition(session.currentSessionId, table.tableName, newX, newY).catch(() => {});
+      }
+    });
+
+    const tableRows = Math.ceil(tables.length / cols);
+    const visualStartY = START_Y + tableRows * (TABLE_H + GAP) + (tables.length > 0 ? GAP : 0);
+
+    visuals.forEach((card, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const newX = START_X + col * (VISUAL_W + GAP);
+      const newY = visualStartY + row * (VISUAL_H + GAP);
+      session.updateVisualCardPosition(card.id, newX, newY);
+    });
+  }, [session]);
+
+  const handleOpenDashboard = useCallback(() => {
+    if (session.currentSessionId) {
+      window.open(`/view/${session.currentSessionId}`, '_blank');
+    }
+  }, [session.currentSessionId]);
 
   useEffect(() => {
     if (initialized.current) return;
@@ -90,6 +135,8 @@ export default function Home() {
             onRemoveVisualCard={session.removeVisualCard}
             onVisualCardPositionChange={session.updateVisualCardPosition}
             relations={session.relations}
+            onAutoLayout={handleAutoLayout}
+            onOpenDashboard={handleOpenDashboard}
           />
 
           {prefillState && (
