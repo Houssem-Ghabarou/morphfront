@@ -82,6 +82,17 @@ export const api = {
     return request(`/api/sessions/${sessionId}/relations`);
   },
 
+  updateRow(tableName: string, id: number | string, data: Record<string, unknown>): Promise<{ row: DataRow }> {
+    return request(`/api/data/${tableName}/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  deleteRow(tableName: string, id: number | string): Promise<{ ok: boolean }> {
+    return request(`/api/data/${tableName}/${id}`, { method: 'DELETE' });
+  },
+
   alterAndInsert(
     tableName: string,
     changes: Array<{ action: string; column: string; newName?: string; newType?: string }>,
