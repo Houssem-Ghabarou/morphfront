@@ -1,131 +1,94 @@
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, useState, useCallback, use } from 'react';
 import { api } from '@/lib/api';
 import { DashboardTable } from '@/components/DashboardTable';
-import type { SessionDetail, Relation } from '@/types';
+import type { SessionDetail, Relation, DataRow } from '@/types';
 
-interface VisualCardData {
-  id: string;
-  type: 'bar' | 'stat' | 'table';
-  title: string;
-  rows: Record<string, unknown>[];
-  columns: string[];
+function toModuleLabel(raw: string): string {
+  return raw.replace(/^s\d+_/, '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function DashboardStatCard({ title, rows, columns }: { title: string; rows: Record<string, unknown>[]; columns: string[] }) {
-  const firstRow = rows[0] ?? {};
-  const valueCol = columns[0] ?? '';
-  const value = firstRow[valueCol];
-  const label = valueCol.replace(/_/g, ' ');
-
-  return (
-    <div className="rounded-xl border border-[#26263a] bg-[#1a1a28] shadow-lg overflow-hidden animate-fade-in border-t-2 border-t-violet-500">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-[#1e1e2e]">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2" className="shrink-0">
-          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-        </svg>
-        <span className="text-xs text-zinc-400 truncate flex-1 font-medium">{title}</span>
-      </div>
-      <div className="px-5 py-5 flex flex-col gap-1">
-        <span className="text-4xl font-bold text-white leading-none">
-          {value === null || value === undefined ? '—' : String(value)}
-        </span>
-        <span className="text-xs text-zinc-500 uppercase tracking-wider capitalize mt-1">
-          {label}
-        </span>
-      </div>
-    </div>
-  );
+function ModuleIcon({ name, size = 14 }: { name: string; size?: number }) {
+  const n = name.toLowerCase();
+  if (n.includes('client') || n.includes('customer') || n.includes('user') || n.includes('member') || n.includes('student') || n.includes('employee'))
+    return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
+  if (n.includes('meal') || n.includes('food') || n.includes('nutrition') || n.includes('calori') || n.includes('diet'))
+    return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>;
+  if (n.includes('order') || n.includes('sale') || n.includes('invoice') || n.includes('payment'))
+    return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>;
+  if (n.includes('product') || n.includes('inventory') || n.includes('stock') || n.includes('item'))
+    return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>;
+  if (n.includes('task') || n.includes('todo') || n.includes('project') || n.includes('program') || n.includes('course') || n.includes('assignment'))
+    return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>;
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg>;
 }
 
-function DashboardBarChart({ title, rows, columns }: { title: string; rows: Record<string, unknown>[]; columns: string[] }) {
-  const firstRow = rows[0] ?? {};
-  let labelCol = columns[0] ?? '';
-  let valueCol = columns[1] ?? '';
-
-  if (columns.length >= 2) {
-    const detectedLabel = columns.find((col) => typeof firstRow[col] !== 'number');
-    const detectedValue = columns.find((col) => typeof firstRow[col] === 'number');
-    if (detectedLabel) labelCol = detectedLabel;
-    if (detectedValue) valueCol = detectedValue;
-  }
-
-  const displayRows = rows.slice(0, 10);
-  const maxValue = Math.max(...displayRows.map((r) => Number(r[valueCol]) || 0), 1);
-
-  return (
-    <div className="rounded-xl border border-[#26263a] bg-[#1a1a28] shadow-lg overflow-hidden animate-fade-in">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-[#1e1e2e]">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2" className="shrink-0">
-          <rect x="3" y="12" width="4" height="9" rx="1" />
-          <rect x="10" y="6" width="4" height="15" rx="1" />
-          <rect x="17" y="3" width="4" height="18" rx="1" />
-        </svg>
-        <span className="text-xs text-zinc-400 truncate flex-1 font-medium">{title}</span>
-      </div>
-      <div className="flex items-end gap-3 px-4 py-5" style={{ height: 200 }}>
-        {displayRows.map((row, i) => {
-          const val = Number(row[valueCol]) || 0;
-          const heightPct = maxValue > 0 ? (val / maxValue) * 100 : 0;
-          const heightPx = Math.max(4, (heightPct / 100) * 140);
-          const labelVal = String(row[labelCol] ?? '');
-          return (
-            <div key={i} className="flex flex-col items-center gap-1 flex-1 min-w-0" style={{ height: '100%', justifyContent: 'flex-end' }}>
-              <span className="text-[10px] text-zinc-400 leading-none">{val}</span>
-              <div className="bg-violet-500 rounded-t w-full min-w-[12px]" style={{ height: heightPx }} />
-              <span className="text-[10px] text-zinc-500 truncate max-w-[80px] text-center w-full">{labelVal}</span>
-            </div>
-          );
-        })}
-        {displayRows.length === 0 && (
-          <div className="flex-1 flex items-center justify-center">
-            <span className="text-xs text-zinc-600">No data</span>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+interface ModuleStats {
+  tableName: string;
+  label: string;
+  count: number;
+  latestRow: DataRow | null;
 }
 
-function DashboardQueryTable({ title, rows, columns }: { title: string; rows: Record<string, unknown>[]; columns: string[] }) {
+function OverviewPage({ tableNames, stats, onSelectModule }: { tableNames: string[]; stats: ModuleStats[]; onSelectModule: (name: string) => void }) {
+  const total = stats.reduce((sum, s) => sum + s.count, 0);
+
   return (
-    <div className="rounded-xl border border-[#26263a] bg-[#1a1a28] shadow-lg overflow-hidden animate-fade-in border-t-2" style={{ borderTopColor: '#06b6d4' }}>
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-[#1e1e2e]">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" strokeWidth="2" className="shrink-0">
-          <rect x="3" y="3" width="18" height="18" rx="2" />
-          <path d="M3 9h18M3 15h18M9 3v18" />
-        </svg>
-        <span className="text-xs text-zinc-400 truncate flex-1 font-medium">{title}</span>
-        <span className="text-[10px] text-cyan-500/60 shrink-0">{rows.length} row{rows.length !== 1 ? 's' : ''}</span>
+    <div className="flex flex-col h-full animate-fade-in">
+      <div className="shrink-0 px-6 pt-6 pb-2">
+        <h2 className="text-lg font-semibold text-zinc-100">Overview</h2>
+        <p className="text-xs text-zinc-600 mt-0.5">{tableNames.length} modules · {total} total records</p>
       </div>
-      <div className="overflow-auto scrollbar-thin" style={{ maxHeight: 320 }}>
-        {rows.length === 0 ? (
-          <div className="px-4 py-8 text-center text-xs text-zinc-600">No results.</div>
-        ) : (
-          <table className="w-full text-xs border-collapse">
-            <thead>
-              <tr className="bg-[#0f0f15]">
-                {columns.map((col) => (
-                  <th key={col} className="text-left px-3 py-2 text-[10px] font-semibold text-cyan-500/70 uppercase tracking-wider border-b border-[#1e1e2e] whitespace-nowrap">
-                    {col}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row, i) => (
-                <tr key={i} className="border-b border-[#1a1a2a] hover:bg-white/[0.02] transition-colors">
-                  {columns.map((col) => (
-                    <td key={col} className="px-3 py-2 text-zinc-300 font-mono whitespace-nowrap max-w-[200px] overflow-hidden text-ellipsis">
-                      {row[col] === null || row[col] === undefined ? <span className="text-zinc-700 italic">null</span> : String(row[col])}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+
+      {/* Stats cards */}
+      <div className="px-6 py-4">
+        <div className={`grid gap-3 ${stats.length <= 2 ? 'grid-cols-2' : stats.length === 3 ? 'grid-cols-3' : 'grid-cols-2 lg:grid-cols-4'}`}>
+          {stats.map((s) => (
+            <button key={s.tableName} onClick={() => onSelectModule(s.tableName)}
+              className="group text-left p-4 rounded-xl border border-[#26263a] bg-[#14141e] hover:border-violet-500/30 hover:bg-[#18182a] transition-all cursor-pointer">
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-9 h-9 rounded-lg bg-violet-600/15 border border-violet-500/20 flex items-center justify-center text-violet-400 group-hover:bg-violet-600/25 transition-colors">
+                  <ModuleIcon name={s.tableName.replace(/^s\d+_/, '')} />
+                </div>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-700 group-hover:text-violet-400 transition-colors">
+                  <path d="M9 18l6-6-6-6"/>
+                </svg>
+              </div>
+              <p className="text-2xl font-bold text-zinc-100">{s.count}</p>
+              <p className="text-[11px] text-zinc-500 mt-0.5">{s.label}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Recent activity / module list */}
+      <div className="flex-1 px-6 pb-6 overflow-auto">
+        <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Modules</h3>
+        <div className="space-y-1.5">
+          {stats.map((s) => (
+            <button key={s.tableName} onClick={() => onSelectModule(s.tableName)}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-[#1e1e30] bg-[#12121c] hover:border-violet-500/25 hover:bg-[#16162a] transition-all group cursor-pointer">
+              <div className="w-8 h-8 rounded-lg bg-violet-600/10 border border-violet-500/15 flex items-center justify-center text-violet-400 shrink-0 group-hover:bg-violet-600/20 transition-colors">
+                <ModuleIcon name={s.tableName.replace(/^s\d+_/, '')} size={13} />
+              </div>
+              <div className="flex-1 min-w-0 text-left">
+                <p className="text-[12px] font-medium text-zinc-200 group-hover:text-white transition-colors">{s.label}</p>
+                <p className="text-[10px] text-zinc-600">{s.count} record{s.count !== 1 ? 's' : ''}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                {s.latestRow && (
+                  <span className="text-[10px] text-zinc-700 max-w-[140px] truncate">
+                    Latest: {Object.values(s.latestRow).find((v) => typeof v === 'string' && v.length > 0) as string || '—'}
+                  </span>
+                )}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-700 group-hover:text-violet-400 shrink-0 transition-colors">
+                  <path d="M9 18l6-6-6-6"/>
+                </svg>
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -137,14 +100,12 @@ export default function DashboardView({ params }: { params: Promise<{ sessionId:
   const [session, setSession] = useState<SessionDetail | null>(null);
   const [relations, setRelations] = useState<Relation[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [visualCards] = useState<VisualCardData[]>([]);
+  const [activeModule, setActiveModule] = useState<string | null>(null);
+  const [moduleStats, setModuleStats] = useState<ModuleStats[]>([]);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   useEffect(() => {
-    if (!sessionId || isNaN(sessionId)) {
-      setError('Invalid session ID');
-      return;
-    }
-
+    if (!sessionId || isNaN(sessionId)) { setError('Invalid session ID'); return; }
     (async () => {
       try {
         const detail = await api.getSession(sessionId);
@@ -157,9 +118,33 @@ export default function DashboardView({ params }: { params: Promise<{ sessionId:
     })();
   }, [sessionId]);
 
+  const loadStats = useCallback(async (tableNames: string[]) => {
+    const results: ModuleStats[] = [];
+    for (const name of tableNames) {
+      try {
+        const { rows } = await api.getTableData(name);
+        results.push({
+          tableName: name,
+          label: toModuleLabel(name.replace(/^s\d+_/, '')),
+          count: rows.length,
+          latestRow: rows.length > 0 ? rows[rows.length - 1] : null,
+        });
+      } catch {
+        results.push({ tableName: name, label: toModuleLabel(name.replace(/^s\d+_/, '')), count: 0, latestRow: null });
+      }
+    }
+    setModuleStats(results);
+  }, []);
+
+  useEffect(() => {
+    if (!session) return;
+    const names = session.sessionTables.map((t) => t.table_name);
+    loadStats(names);
+  }, [session, loadStats]);
+
   if (error) {
     return (
-      <div className="min-h-screen bg-[#0d0d12] flex items-center justify-center">
+      <div className="h-screen bg-[#0d0d12] flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2">
@@ -167,9 +152,7 @@ export default function DashboardView({ params }: { params: Promise<{ sessionId:
             </svg>
           </div>
           <p className="text-sm text-zinc-400">{error}</p>
-          <a href="/" className="inline-block mt-4 text-xs text-violet-400 hover:text-violet-300 transition-colors">
-            Back to Morph
-          </a>
+          <a href="/" className="inline-block mt-4 text-xs text-violet-400 hover:text-violet-300 transition-colors">Back to Morph</a>
         </div>
       </div>
     );
@@ -177,127 +160,128 @@ export default function DashboardView({ params }: { params: Promise<{ sessionId:
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-[#0d0d12] flex items-center justify-center">
+      <div className="h-screen bg-[#0d0d12] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-violet-500/30 border-t-violet-500 rounded-full animate-spin" />
-          <p className="text-xs text-zinc-600">Loading dashboard…</p>
+          <p className="text-xs text-zinc-600">Loading app…</p>
         </div>
       </div>
     );
   }
 
   const tableNames = session.sessionTables.map((t) => t.table_name);
-  const stats = visualCards.filter((c) => c.type === 'stat');
-  const charts = visualCards.filter((c) => c.type === 'bar');
-  const queryTables = visualCards.filter((c) => c.type === 'table');
 
   return (
-    <div className="min-h-screen bg-[#0d0d12]">
-      {/* Top bar */}
-      <header className="sticky top-0 z-50 border-b border-[#1a1a24] bg-[#0a0a0f]/95 backdrop-blur-md">
-        <div className="max-w-[1400px] mx-auto px-6 py-3.5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-violet-600 flex items-center justify-center text-white shadow-[0_0_12px_rgba(124,58,237,0.4)]">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5z" />
-                <path d="M2 17l10 5 10-5" />
-                <path d="M2 12l10 5 10-5" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="text-sm font-semibold text-zinc-100">{session.name || 'Untitled Project'}</h1>
-              <p className="text-[10px] text-zinc-600">Dashboard View</p>
-            </div>
+    <div className="flex h-screen overflow-hidden bg-[#0d0d12]">
+      {/* Sidebar */}
+      <aside className={`shrink-0 flex flex-col border-r border-[#1a1a24] bg-[#0a0a0f] transition-all duration-200 ${sidebarCollapsed ? 'w-[52px]' : 'w-[220px]'}`}>
+        {/* Logo header */}
+        <div className={`flex items-center shrink-0 border-b border-[#1a1a24] ${sidebarCollapsed ? 'justify-center py-3' : 'gap-2.5 px-4 py-3.5'}`}>
+          <div className="w-7 h-7 rounded-lg bg-violet-600 flex items-center justify-center text-white shadow-[0_0_10px_rgba(124,58,237,0.4)] shrink-0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
+            </svg>
           </div>
-
-          <div className="flex items-center gap-3">
-            <span className="text-[10px] text-zinc-600 font-mono">
-              {tableNames.length} module{tableNames.length !== 1 ? 's' : ''}
-            </span>
-            <a
-              href="/"
-              className="flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-medium text-zinc-400 hover:text-violet-300 border border-[#2a2a2a] hover:border-violet-500/30 hover:bg-violet-600/10 transition-all"
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-              Open in Editor
-            </a>
-          </div>
+          {!sidebarCollapsed && (
+            <div className="flex-1 min-w-0">
+              <p className="text-[12px] font-semibold text-zinc-100 truncate">{session.name || 'Untitled'}</p>
+              <p className="text-[9px] text-zinc-700">Dashboard</p>
+            </div>
+          )}
+          {!sidebarCollapsed && (
+            <button onClick={() => setSidebarCollapsed(true)}
+              className="w-6 h-6 flex items-center justify-center rounded text-zinc-700 hover:text-zinc-400 hover:bg-white/5 transition-colors shrink-0">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+          )}
         </div>
-      </header>
 
-      <main className="max-w-[1400px] mx-auto px-6 py-8">
-        {/* KPI Stats row */}
-        {stats.length > 0 && (
-          <section className="mb-8">
-            <div className={`grid gap-4 ${stats.length === 1 ? 'grid-cols-1 max-w-xs' : stats.length === 2 ? 'grid-cols-2 max-w-xl' : stats.length === 3 ? 'grid-cols-3' : 'grid-cols-2 md:grid-cols-4'}`}>
-              {stats.map((card) => (
-                <DashboardStatCard key={card.id} title={card.title} rows={card.rows} columns={card.columns} />
-              ))}
-            </div>
-          </section>
+        {sidebarCollapsed && (
+          <button onClick={() => setSidebarCollapsed(false)}
+            className="mx-auto mt-2 w-8 h-8 flex items-center justify-center rounded-lg text-zinc-600 hover:text-zinc-400 hover:bg-white/5 transition-colors">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
+          </button>
         )}
 
-        {/* Charts row */}
-        {charts.length > 0 && (
-          <section className="mb-8">
-            <div className={`grid gap-4 ${charts.length === 1 ? 'grid-cols-1 max-w-lg' : 'grid-cols-1 md:grid-cols-2'}`}>
-              {charts.map((card) => (
-                <DashboardBarChart key={card.id} title={card.title} rows={card.rows} columns={card.columns} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Query result tables */}
-        {queryTables.length > 0 && (
-          <section className="mb-8">
-            <div className="grid gap-4 grid-cols-1">
-              {queryTables.map((card) => (
-                <DashboardQueryTable key={card.id} title={card.title} rows={card.rows} columns={card.columns} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Module tables */}
-        {tableNames.length > 0 && (
-          <section>
-            {(stats.length > 0 || charts.length > 0 || queryTables.length > 0) && (
-              <div className="flex items-center gap-3 mb-5">
-                <div className="h-px flex-1 bg-[#1e1e2e]" />
-                <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-700">Modules</span>
-                <div className="h-px flex-1 bg-[#1e1e2e]" />
-              </div>
-            )}
-            <div className={`grid gap-5 ${tableNames.length === 1 ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2'}`}>
-              {tableNames.map((name) => (
-                <DashboardTable key={name} tableName={name} sessionId={sessionId} relations={relations} />
-              ))}
-            </div>
-          </section>
-        )}
-
-        {tableNames.length === 0 && stats.length === 0 && charts.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-[#1a1a28] border border-[#26263a] flex items-center justify-center mb-4">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3f3f56" strokeWidth="1.5">
-                <rect x="3" y="3" width="7" height="7" rx="1" />
-                <rect x="14" y="3" width="7" height="7" rx="1" />
-                <rect x="3" y="14" width="7" height="7" rx="1" />
-                <rect x="14" y="14" width="7" height="7" rx="1" />
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto scrollbar-thin py-2">
+          {/* Overview */}
+          <div className={sidebarCollapsed ? 'px-1.5' : 'px-2'}>
+            <button onClick={() => setActiveModule(null)}
+              className={`w-full flex items-center rounded-lg transition-all mb-1 cursor-pointer ${sidebarCollapsed ? 'justify-center p-2' : 'gap-2.5 px-3 py-2'} ${
+                activeModule === null ? 'bg-violet-600/15 text-violet-300' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.03]'
+              }`}
+              title="Overview"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0">
+                <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
               </svg>
-            </div>
-            <p className="text-sm text-zinc-500">No modules configured yet</p>
-            <p className="text-xs text-zinc-700 mt-1">Go to the editor to create tables and KPIs with AI</p>
-            <a href="/" className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium text-violet-400 bg-violet-600/10 border border-violet-500/20 hover:bg-violet-600/20 transition-colors">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-              Open Editor
-            </a>
+              {!sidebarCollapsed && <span className="text-[11px] font-medium">Overview</span>}
+            </button>
           </div>
+
+          {/* Module separator */}
+          {!sidebarCollapsed && tableNames.length > 0 && (
+            <div className="px-4 pt-4 pb-1.5">
+              <span className="text-[9px] font-semibold uppercase tracking-widest text-zinc-700">Modules</span>
+            </div>
+          )}
+          {sidebarCollapsed && tableNames.length > 0 && <div className="mx-3 my-2 h-px bg-[#1e1e2e]" />}
+
+          {/* Module items */}
+          <div className={sidebarCollapsed ? 'px-1.5 space-y-0.5' : 'px-2 space-y-0.5'}>
+            {tableNames.map((name) => {
+              const displayName = name.replace(/^s\d+_/, '');
+              const label = toModuleLabel(displayName);
+              const isActive = activeModule === name;
+              const stat = moduleStats.find((s) => s.tableName === name);
+              return (
+                <button key={name} onClick={() => setActiveModule(name)}
+                  className={`w-full flex items-center rounded-lg transition-all cursor-pointer ${sidebarCollapsed ? 'justify-center p-2' : 'gap-2.5 px-3 py-2'} ${
+                    isActive ? 'bg-violet-600/15 text-violet-300' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.03]'
+                  }`}
+                  title={label}
+                >
+                  <span className={`shrink-0 ${isActive ? 'text-violet-400' : ''}`}>
+                    <ModuleIcon name={displayName} size={15} />
+                  </span>
+                  {!sidebarCollapsed && (
+                    <>
+                      <span className="flex-1 text-[11px] font-medium text-left truncate">{label}</span>
+                      {stat && (
+                        <span className={`text-[9px] font-mono shrink-0 ${isActive ? 'text-violet-400/60' : 'text-zinc-700'}`}>
+                          {stat.count}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+
+        {/* Footer */}
+        <div className={`shrink-0 border-t border-[#1a1a24] ${sidebarCollapsed ? 'py-2 px-1.5' : 'py-2.5 px-3'}`}>
+          <a href="/"
+            className={`flex items-center rounded-lg text-zinc-600 hover:text-violet-400 hover:bg-violet-500/8 transition-all ${sidebarCollapsed ? 'justify-center p-2' : 'gap-2 px-3 py-2'}`}
+            title="Open in Editor"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            {!sidebarCollapsed && <span className="text-[11px] font-medium">Open in Editor</span>}
+          </a>
+        </div>
+      </aside>
+
+      {/* Main content */}
+      <main className="flex-1 min-w-0 overflow-hidden">
+        {activeModule === null ? (
+          <OverviewPage tableNames={tableNames} stats={moduleStats} onSelectModule={setActiveModule} />
+        ) : (
+          <DashboardTable key={activeModule} tableName={activeModule} sessionId={sessionId} relations={relations} />
         )}
       </main>
     </div>

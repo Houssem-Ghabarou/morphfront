@@ -22,21 +22,6 @@ function toSingular(label: string): string {
   return label;
 }
 
-function ModuleIcon({ name }: { name: string }) {
-  const n = name.toLowerCase();
-  if (n.includes('client') || n.includes('customer') || n.includes('user') || n.includes('member') || n.includes('student') || n.includes('employee'))
-    return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
-  if (n.includes('meal') || n.includes('food') || n.includes('nutrition') || n.includes('calori') || n.includes('diet'))
-    return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>;
-  if (n.includes('order') || n.includes('sale') || n.includes('invoice') || n.includes('payment'))
-    return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>;
-  if (n.includes('product') || n.includes('inventory') || n.includes('stock') || n.includes('item'))
-    return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>;
-  if (n.includes('task') || n.includes('todo') || n.includes('project') || n.includes('program') || n.includes('course') || n.includes('assignment'))
-    return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>;
-  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg>;
-}
-
 export function DashboardTable({ tableName, sessionId, relations = [] }: DashboardTableProps) {
   const [columns, setColumns] = useState<SchemaColumn[]>([]);
   const [rows, setRows] = useState<DataRow[]>([]);
@@ -48,7 +33,7 @@ export function DashboardTable({ tableName, sessionId, relations = [] }: Dashboa
   const [hoveredRowId, setHoveredRowId] = useState<unknown>(null);
   const [sortState, setSortState] = useState<{ col: string; dir: 'asc' | 'desc' } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
+  const [selectedRows, setSelectedRows] = useState<Set<unknown>>(new Set());
   const cardRef = useRef<HTMLDivElement>(null);
 
   const fetchData = useCallback(async () => {
@@ -99,6 +84,7 @@ export function DashboardTable({ tableName, sessionId, relations = [] }: Dashboa
         }
       }
       await api.deleteRow(tableName, rowId as string);
+      setSelectedRows((prev) => { const next = new Set(prev); next.delete(rowId); return next; });
       await fetchData();
     } catch (err) {
       console.error('Failed to delete row', err);
@@ -107,11 +93,20 @@ export function DashboardTable({ tableName, sessionId, relations = [] }: Dashboa
     }
   };
 
+  const bulkDelete = async () => {
+    for (const rowId of selectedRows) {
+      const row = rows.find((r) => r.id === rowId);
+      if (row) await deleteRow(row);
+    }
+    setSelectedRows(new Set());
+  };
+
   const exportCSV = () => {
     const cols = dataColumns.map((c) => c.column_name);
+    const exportRows = selectedRows.size > 0 ? rows.filter((r) => selectedRows.has(r.id)) : rows;
     const csv = [
       cols.join(','),
-      ...rows.map((row) =>
+      ...exportRows.map((row) =>
         cols.map((c) => {
           const v = row[c];
           if (v === null || v === undefined) return '';
@@ -127,8 +122,7 @@ export function DashboardTable({ tableName, sessionId, relations = [] }: Dashboa
   };
 
   const dataColumns = columns.filter((c) => c.column_name !== 'id' && c.column_name !== 'created_at');
-  const displayName = tableName.replace(/^s\d+_/, '');
-  const moduleLabel = toModuleLabel(displayName);
+  const moduleLabel = toModuleLabel(tableName.replace(/^s\d+_/, ''));
   const singularLabel = toSingular(moduleLabel);
 
   const searchedRows = searchQuery.trim()
@@ -150,6 +144,22 @@ export function DashboardTable({ tableName, sessionId, relations = [] }: Dashboa
     return null;
   });
 
+  const toggleRow = (id: unknown) => {
+    setSelectedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (selectedRows.size === sortedRows.length) {
+      setSelectedRows(new Set());
+    } else {
+      setSelectedRows(new Set(sortedRows.map((r) => r.id)));
+    }
+  };
+
   const openModal = (row?: DataRow) => {
     const el = cardRef.current;
     if (!el) return;
@@ -162,51 +172,85 @@ export function DashboardTable({ tableName, sessionId, relations = [] }: Dashboa
 
   return (
     <>
-      <div ref={cardRef} className="rounded-xl overflow-hidden border border-[#26263a] bg-[#1a1a28] shadow-lg animate-fade-in">
-        {/* Header */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-[#1e1e2e]">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-violet-600/20 border border-violet-500/25 text-violet-400 shrink-0">
-            <ModuleIcon name={displayName} />
+      <div ref={cardRef} className="flex flex-col h-full animate-fade-in">
+        {/* Page header */}
+        <div className="shrink-0 px-6 pt-6 pb-4">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-zinc-100">{moduleLabel}</h2>
+              <p className="text-xs text-zinc-600 mt-0.5">
+                {rows.length} {rows.length === 1 ? 'record' : 'records'} total
+                {searchQuery && ` · ${sortedRows.length} matching`}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {selectedRows.size > 0 && (
+                <>
+                  <span className="text-[11px] text-violet-400 font-medium mr-1">{selectedRows.size} selected</span>
+                  <button onClick={bulkDelete}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-colors">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+                    Delete
+                  </button>
+                  <button onClick={exportCSV}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 bg-white/5 border border-[#2a2a2a] hover:border-zinc-600 hover:text-zinc-200 transition-colors">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Export Selected
+                  </button>
+                </>
+              )}
+              <button onClick={() => fetchData()}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 bg-white/5 border border-[#2a2a2a] hover:border-zinc-600 hover:text-zinc-200 transition-colors">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+                Refresh
+              </button>
+              <button onClick={exportCSV}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 bg-white/5 border border-[#2a2a2a] hover:border-zinc-600 hover:text-zinc-200 transition-colors">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Export
+              </button>
+              <button onClick={() => openModal()}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium text-white bg-violet-600 hover:bg-violet-500 shadow-[0_2px_8px_rgba(124,58,237,0.3)] transition-colors">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                Add {singularLabel}
+              </button>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <span className="text-[13px] font-semibold text-zinc-100 truncate block">{moduleLabel}</span>
-            <span className="text-[10px] text-zinc-500">{rows.length} {rows.length === 1 ? 'record' : 'records'}</span>
+
+          {/* Search */}
+          <div className="relative max-w-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#52525b" strokeWidth="2" className="absolute left-3 top-1/2 -translate-y-1/2">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input
+              type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={`Search ${moduleLabel.toLowerCase()}…`}
+              className="w-full bg-[#111118] border border-[#26263a] rounded-lg pl-9 pr-3 py-2 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-violet-500/40 transition-colors"
+            />
           </div>
-          <button onClick={() => { setShowSearch((v) => !v); if (showSearch) setSearchQuery(''); }} title="Search"
-            className={`shrink-0 w-7 h-7 flex items-center justify-center rounded-lg transition-colors ${showSearch ? 'text-violet-400 bg-violet-500/15' : 'text-zinc-600 hover:text-zinc-400 hover:bg-white/5'}`}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          </button>
-          <button onClick={exportCSV} title="Export CSV"
-            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-zinc-600 hover:text-zinc-400 hover:bg-white/5 transition-colors">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          </button>
         </div>
 
-        {/* Search bar */}
-        {showSearch && (
-          <div className="px-4 py-2.5 border-b border-[#1e1e2e]">
-            <input autoFocus type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={`Search ${moduleLabel.toLowerCase()}…`}
-              className="w-full bg-[#111] border border-[#2a2a2a] rounded-lg px-3 py-2 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-violet-500/40 transition-colors" />
-          </div>
-        )}
-
-        {/* Body */}
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="w-5 h-5 border-2 border-violet-500/40 border-t-violet-500 rounded-full animate-spin" />
-          </div>
-        ) : (
-          <div className="overflow-x-auto scrollbar-thin" style={{ maxHeight: 420 }}>
+        {/* Table */}
+        <div className="flex-1 min-h-0 overflow-auto scrollbar-thin mx-6 mb-6 rounded-xl border border-[#26263a] bg-[#12121c]">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="w-6 h-6 border-2 border-violet-500/40 border-t-violet-500 rounded-full animate-spin" />
+            </div>
+          ) : (
             <table className="w-full text-xs border-collapse">
-              <thead>
-                <tr className="bg-[#0f0f15]">
+              <thead className="sticky top-0 z-10">
+                <tr className="bg-[#16162a]">
+                  <th className="w-10 px-3 py-3 border-b border-[#26263a]">
+                    <input type="checkbox" checked={selectedRows.size === sortedRows.length && sortedRows.length > 0}
+                      onChange={toggleAll}
+                      className="w-3.5 h-3.5 rounded border-zinc-600 bg-transparent accent-violet-500 cursor-pointer" />
+                  </th>
                   {dataColumns.map((col) => {
                     const isSorted = sortState?.col === col.column_name;
                     return (
                       <th key={col.column_name} onClick={() => cycleSort(col.column_name)}
-                        className="text-left px-3 py-2.5 text-[10px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-[#1e1e2e] whitespace-nowrap cursor-pointer hover:text-zinc-300 select-none transition-colors">
-                        <span className="flex items-center gap-1">
+                        className="text-left px-3 py-3 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider border-b border-[#26263a] whitespace-nowrap cursor-pointer hover:text-zinc-200 select-none transition-colors">
+                        <span className="flex items-center gap-1.5">
                           {col.column_name.replace(/_/g, ' ')}
                           {isSorted ? (
                             <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="text-violet-400">
@@ -219,53 +263,71 @@ export function DashboardTable({ tableName, sessionId, relations = [] }: Dashboa
                       </th>
                     );
                   })}
-                  <th className="w-16 border-b border-[#1e1e2e]" />
+                  <th className="w-20 px-3 py-3 border-b border-[#26263a] text-right text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {sortedRows.length === 0 ? (
                   <tr>
-                    <td colSpan={dataColumns.length + 1} className="px-3 py-8 text-center text-zinc-600 text-xs">
-                      {rows.length === 0 ? `No ${singularLabel.toLowerCase()} records yet` : 'No records match your search'}
+                    <td colSpan={dataColumns.length + 2} className="px-3 py-16 text-center">
+                      <div className="flex flex-col items-center gap-2">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3f3f56" strokeWidth="1.5" className="mb-1">
+                          <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/>
+                        </svg>
+                        <p className="text-sm text-zinc-500">{rows.length === 0 ? `No ${singularLabel.toLowerCase()} records yet` : 'No records match your search'}</p>
+                        {rows.length === 0 && (
+                          <button onClick={() => openModal()} className="mt-2 text-xs text-violet-400 hover:text-violet-300 transition-colors">
+                            Create your first {singularLabel.toLowerCase()}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ) : (
                   sortedRows.map((row, i) => {
                     const rowId = row.id;
                     const isDeleting = deletingId === rowId;
+                    const isSelected = selectedRows.has(rowId);
                     return (
                       <tr
                         key={rowId != null ? String(rowId) : i}
                         onMouseEnter={() => setHoveredRowId(rowId)}
                         onMouseLeave={() => setHoveredRowId(null)}
-                        className={`border-b border-[#1a1a2a] transition-colors ${isDeleting ? 'opacity-40' : 'hover:bg-white/[0.025]'}`}
+                        className={`border-b border-[#1e1e30] transition-colors ${isDeleting ? 'opacity-40' : ''} ${isSelected ? 'bg-violet-500/8' : 'hover:bg-white/[0.02]'}`}
                       >
+                        <td className="w-10 px-3 py-2.5">
+                          <input type="checkbox" checked={isSelected} onChange={() => toggleRow(rowId)}
+                            className="w-3.5 h-3.5 rounded border-zinc-600 bg-transparent accent-violet-500 cursor-pointer" />
+                        </td>
                         {dataColumns.map((col) => {
                           const val = row[col.column_name];
                           return (
-                            <td key={col.column_name} className="px-3 py-2.5 text-zinc-300 text-[11px] whitespace-nowrap max-w-[220px] overflow-hidden text-ellipsis">
+                            <td key={col.column_name} className="px-3 py-2.5 text-zinc-300 text-[11px] whitespace-nowrap max-w-[240px] overflow-hidden text-ellipsis">
                               {val === null || val === undefined ? <span className="text-zinc-700 italic">—</span>
                                 : typeof val === 'boolean' ? (
-                                  <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${val ? 'bg-green-500/10 text-green-400' : 'bg-zinc-800 text-zinc-500'}`}>{String(val)}</span>
+                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${val ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-zinc-800 text-zinc-500 border border-zinc-700'}`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${val ? 'bg-emerald-400' : 'bg-zinc-600'}`} />
+                                    {String(val)}
+                                  </span>
                                 ) : String(val)}
                             </td>
                           );
                         })}
-                        <td className="w-16 px-2 text-center">
+                        <td className="w-20 px-3 py-2.5 text-right">
                           {isDeleting ? (
-                            <div className="w-3 h-3 border border-red-500/40 border-t-red-500 rounded-full animate-spin mx-auto" />
-                          ) : hoveredRowId === rowId ? (
-                            <div className="flex items-center justify-center gap-1">
+                            <div className="w-3.5 h-3.5 border border-red-500/40 border-t-red-500 rounded-full animate-spin ml-auto" />
+                          ) : hoveredRowId === rowId || isSelected ? (
+                            <div className="flex items-center justify-end gap-0.5">
                               <button onClick={() => openModal(row)} title="Edit"
-                                className="w-6 h-6 flex items-center justify-center rounded text-zinc-500 hover:text-violet-400 hover:bg-violet-500/10 transition-colors">
-                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-500 hover:text-violet-400 hover:bg-violet-500/10 transition-colors">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                   <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                                   <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                                 </svg>
                               </button>
                               <button onClick={() => deleteRow(row)} title="Delete"
-                                className="w-6 h-6 flex items-center justify-center rounded text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors">
-                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition-colors">
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                   <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
                                   <path d="M10 11v6M14 11v6M9 6V4h6v2"/>
                                 </svg>
@@ -279,16 +341,7 @@ export function DashboardTable({ tableName, sessionId, relations = [] }: Dashboa
                 )}
               </tbody>
             </table>
-          </div>
-        )}
-
-        {/* Footer */}
-        <div className="px-4 py-2.5 border-t border-[#1e1e2e]">
-          <button type="button" onClick={() => openModal()}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-zinc-400 hover:text-violet-300 hover:bg-violet-500/10 transition-colors w-full">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
-            Add {singularLabel}
-          </button>
+          )}
         </div>
       </div>
 
