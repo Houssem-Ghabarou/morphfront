@@ -56,7 +56,7 @@ export interface ChatResponse {
     tableName: string;
     columns: Column[];
   } | null;
-  action: 'create' | 'alter' | 'insert' | 'select' | 'unknown' | 'prefill' | 'query' | 'create_many' | 'plan' | 'analyze';
+  action: 'create' | 'alter' | 'insert' | 'select' | 'unknown' | 'prefill' | 'query' | 'create_many' | 'plan' | 'analyze' | 'seed';
   suggestions?: string[];
   alreadyExisted?: boolean;
   sessionName?: string;

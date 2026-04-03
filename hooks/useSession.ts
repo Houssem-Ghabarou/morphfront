@@ -181,6 +181,15 @@ export function useSession(): UseSessionReturn {
           }
         }
 
+        // After seed, tell every TableCard to refetch its data
+        if (response.action === 'seed') {
+          for (const t of tables) {
+            window.dispatchEvent(
+              new CustomEvent('morph:refresh', { detail: { tableName: t.tableName } })
+            );
+          }
+        }
+
         return response;
       } catch (err) {
         console.error('Failed to send message', err);
