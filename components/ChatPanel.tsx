@@ -7,7 +7,7 @@ import {
   useCallback,
   KeyboardEvent,
 } from 'react';
-import type { LocalMessage, TableCardData, ChatResponse, Column, VisualCard } from '@/types';
+import type { LocalMessage, TableCardData, ChatResponse, Column, VisualCard, AnalysisCard } from '@/types';
 
 interface ChatPanelProps {
   messages: LocalMessage[];
@@ -18,6 +18,7 @@ interface ChatPanelProps {
   existingTables: TableCardData[];
   onPrefill: (tableName: string, columns: Column[], values: Record<string, unknown>) => void;
   onQueryResult: (card: Omit<VisualCard, 'id' | 'x' | 'y'>) => void;
+  onAnalyze?: (cards: AnalysisCard[]) => void;
 }
 
 // Linear-style icon set for chat
@@ -209,6 +210,7 @@ export function ChatPanel({
   existingTables,
   onPrefill,
   onQueryResult,
+  onAnalyze,
 }: ChatPanelProps) {
   const [input, setInput] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
@@ -271,7 +273,11 @@ export function ChatPanel({
         onQueryResult({ type: 'table', title: text, rows: response.rows, columns: response.columns ?? [], sql: response.sql });
       }
     }
-  }, [input, sessionId, isSending, onSend, onTableAction, getNextCardPosition, onPrefill, onQueryResult, existingTables]);
+
+    if (response.action === 'analyze' && response.analyses && onAnalyze) {
+      onAnalyze(response.analyses);
+    }
+  }, [input, sessionId, isSending, onSend, onTableAction, getNextCardPosition, onPrefill, onQueryResult, onAnalyze, existingTables]);
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }

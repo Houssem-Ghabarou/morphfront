@@ -8,7 +8,8 @@ import { Canvas } from '@/components/Canvas';
 import { ChatPanel } from '@/components/ChatPanel';
 import { SlidePanel } from '@/components/SlidePanel';
 import type { SchemaChange } from '@/components/SlidePanel';
-import type { Column, VisualCard } from '@/types';
+import { AnalyticsPanel } from '@/components/AnalyticsPanel';
+import type { Column, VisualCard, AnalysisCard } from '@/types';
 
 export default function Home() {
   const session = useSession();
@@ -19,17 +20,39 @@ export default function Home() {
     values: Record<string, unknown>;
   } | null>(null);
 
+  const [analysisCards, setAnalysisCards] = useState<AnalysisCard[] | null>(null);
+
   const handlePrefill = (tableName: string, columns: Column[], values: Record<string, unknown>) => {
     setPrefillState({ tableName, columns, values });
   };
 
-  const handleQueryResult = (card: Omit<VisualCard, 'id' | 'x' | 'y'>) => {
-    const id = `visual-${Date.now()}`;
-    const idx = session.visualCards.length;
+  const handleAnalyze = useCallback((cards: AnalysisCard[]) => {
+    setAnalysisCards(cards);
+  }, []);
+
+  const handleQueryToPanel = useCallback((card: Omit<VisualCard, 'id' | 'x' | 'y'>) => {
+    const analysisCard: AnalysisCard = {
+      title: card.title,
+      sql: card.sql,
+      rows: card.rows,
+      columns: card.columns,
+      chartType: card.type,
+    };
+    setAnalysisCards((prev) => [...(prev ?? []), analysisCard]);
+  }, []);
+
+  const visualCountRef = useRef(0);
+  useEffect(() => { visualCountRef.current = session.visualCards.length; }, [session.visualCards.length]);
+
+  const cardIdCounter = useRef(0);
+
+  const handlePinToCanvas = useCallback((card: AnalysisCard) => {
+    const id = `visual-${Date.now()}-${++cardIdCounter.current}`;
+    const idx = visualCountRef.current++;
     const x = 60 + (idx % 3) * 380;
     const y = 60 + Math.floor(idx / 3) * 280;
-    session.addVisualCard({ ...card, id, x, y });
-  };
+    session.addVisualCard({ ...card, id, x, y, type: card.chartType });
+  }, [session]);
 
   const handlePrefillConfirm = async (
     tableName: string,
@@ -150,6 +173,14 @@ export default function Home() {
               onCancel={() => setPrefillState(null)}
             />
           )}
+
+          {analysisCards && (
+            <AnalyticsPanel
+              cards={analysisCards}
+              onPinToCanvas={handlePinToCanvas}
+              onClose={() => setAnalysisCards(null)}
+            />
+          )}
         </div>
 
         <ChatPanel
@@ -160,7 +191,8 @@ export default function Home() {
           onTableAction={session.addOrUpdateTable}
           existingTables={session.tables}
           onPrefill={handlePrefill}
-          onQueryResult={handleQueryResult}
+          onQueryResult={handleQueryToPanel}
+          onAnalyze={handleAnalyze}
         />
       </div>
     </div>

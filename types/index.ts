@@ -56,7 +56,7 @@ export interface ChatResponse {
     tableName: string;
     columns: Column[];
   } | null;
-  action: 'create' | 'alter' | 'insert' | 'select' | 'unknown' | 'prefill' | 'query' | 'create_many' | 'plan';
+  action: 'create' | 'alter' | 'insert' | 'select' | 'unknown' | 'prefill' | 'query' | 'create_many' | 'plan' | 'analyze';
   suggestions?: string[];
   alreadyExisted?: boolean;
   sessionName?: string;
@@ -67,6 +67,21 @@ export interface ChatResponse {
   chartType?: 'bar' | 'stat' | 'table';
   schemas?: Array<{ tableName: string; columns: Column[] }>;
   relations?: Relation[];
+  analyses?: Array<{
+    title: string;
+    sql: string;
+    rows: Record<string, unknown>[];
+    columns: string[];
+    chartType: 'bar' | 'stat' | 'table';
+  }>;
+}
+
+export interface AnalysisCard {
+  title: string;
+  sql: string;
+  rows: Record<string, unknown>[];
+  columns: string[];
+  chartType: 'bar' | 'stat' | 'table';
 }
 
 export interface VisualCard {

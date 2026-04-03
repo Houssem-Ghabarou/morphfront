@@ -312,9 +312,9 @@ export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualC
           };
           return (
             <div key={card.id} style={{ pointerEvents: 'auto' }}>
-              {card.type === 'stat' && <StatCard key={card.id} {...commonProps} />}
-              {card.type === 'bar' && <BarChartCard key={card.id} {...commonProps} />}
-              {card.type === 'table' && <QueryResultCard key={card.id} {...commonProps} />}
+              {card.type === 'stat' && <StatCard {...commonProps} />}
+              {card.type === 'bar' && <BarChartCard {...commonProps} />}
+              {card.type === 'table' && <QueryResultCard {...commonProps} />}
             </div>
           );
         })}
