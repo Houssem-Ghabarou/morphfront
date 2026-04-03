@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { Session } from '@/types';
+import { MorphSidebarBrand } from '@/components/MorphLogo';
 
 interface SidebarProps {
   sessions: Session[];
@@ -47,13 +48,6 @@ function timeAgo(dateStr: string): string {
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
 const Icons = {
-  Logo: () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 2L2 7l10 5 10-5-10-5z" />
-      <path d="M2 17l10 5 10-5" />
-      <path d="M2 12l10 5 10-5" />
-    </svg>
-  ),
   Project: () => (
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="3" width="7" height="7" rx="1" />
@@ -409,15 +403,7 @@ export function Sidebar({
       <div className="flex flex-col w-[260px] shrink-0 border-r border-[#1a1a24] bg-[#0a0a0f] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3.5 border-b border-[#1a1a24]">
-          <div className="flex items-center gap-2.5">
-            <div className="w-6 h-6 rounded-lg bg-violet-600 flex items-center justify-center text-white shadow-[0_0_10px_rgba(124,58,237,0.4)]">
-              <Icons.Logo />
-            </div>
-            <div>
-              <span className="font-semibold text-[13px] text-zinc-100 tracking-tight leading-none">Morph</span>
-              <p className="text-[9px] text-zinc-600 leading-none mt-0.5">Business OS</p>
-            </div>
-          </div>
+          <MorphSidebarBrand />
           <button
             onClick={() => setCollapsed(true)}
             className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-600 hover:text-zinc-400 hover:bg-white/5 transition-all duration-150 cursor-pointer"

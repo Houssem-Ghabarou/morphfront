@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { MorphCanvasBrand } from '@/components/MorphLogo';
 import { TableCard } from '@/components/TableCard';
 import { StatCard } from '@/components/StatCard';
 import { BarChartCard } from '@/components/BarChartCard';
@@ -179,6 +180,10 @@ export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualC
       onMouseDown={handleMouseDown}
       onContextMenu={(e) => e.preventDefault()}
     >
+      <div className="absolute top-4 left-4 z-30">
+        <MorphCanvasBrand />
+      </div>
+
       {isLoading ? (
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="flex flex-col items-center gap-3">

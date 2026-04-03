@@ -16,6 +16,10 @@ export const metadata: Metadata = {
   title: 'Morph — LLM Business OS',
   description:
     'Type natural language, generate SQL, and manage your data on a visual canvas.',
+  icons: {
+    icon: [{ url: '/morph.png', type: 'image/png' }],
+    apple: '/morph.png',
+  },
 };
 
 export default function RootLayout({

@@ -8,6 +8,7 @@ import {
   KeyboardEvent,
 } from 'react';
 import type { LocalMessage, TableCardData, ChatResponse, Column, VisualCard, AnalysisCard } from '@/types';
+import { MorphMark } from '@/components/MorphLogo';
 
 interface ChatPanelProps {
   messages: LocalMessage[];
@@ -33,11 +34,6 @@ const Icons = {
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
       style={{ transform: rotated ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }}>
       <path d="M18 15l-6-6-6 6" />
-    </svg>
-  ),
-  Sparkle: () => (
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4L12 2z" />
     </svg>
   ),
   Warning: () => (
@@ -124,11 +120,7 @@ function renderMessageText(text: string): React.ReactNode {
 }
 
 function MorphAvatar() {
-  return (
-    <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-violet-600 to-violet-800 flex items-center justify-center shrink-0 shadow-[0_0_8px_rgba(124,58,237,0.3)]">
-      <Icons.Sparkle />
-    </div>
-  );
+  return <MorphMark size="md" />;
 }
 
 // ─── Message bubble ───────────────────────────────────────────────────────────
@@ -449,9 +441,7 @@ export function ChatPanel({
       <div className="flex items-center justify-between px-4 py-2 border-b border-[#16162a]/60 shrink-0">
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5">
-            <div className="w-4 h-4 rounded-md bg-gradient-to-br from-violet-600 to-violet-800 flex items-center justify-center">
-              <Icons.Sparkle />
-            </div>
+            <MorphMark size="sm" />
             <span className="text-[11px] font-semibold text-zinc-400 tracking-tight">Morph AI</span>
           </div>
           {sessionId && (
