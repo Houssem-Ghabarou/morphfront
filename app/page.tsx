@@ -9,11 +9,24 @@ import { ChatPanel } from '@/components/ChatPanel';
 import { SlidePanel } from '@/components/SlidePanel';
 import type { SchemaChange } from '@/components/SlidePanel';
 import { AnalyticsPanel } from '@/components/AnalyticsPanel';
+import { ImportModal } from '@/components/ImportModal';
 import type { Column, VisualCard, AnalysisCard } from '@/types';
 
 export default function Home() {
   const session = useSession();
   const initialized = useRef(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importToast, setImportToast] = useState<string | null>(null);
+
+  const handleImportSuccess = useCallback((tableName: string, rowCount: number) => {
+    // Reload session so the new/updated table appears on the canvas
+    if (session.currentSessionId) {
+      session.switchSession(session.currentSessionId).catch(console.error);
+    }
+    setImportToast(`${rowCount} rows imported into ${tableName.replace(/^s\d+_/, '')}`);
+    setTimeout(() => setImportToast(null), 4000);
+  }, [session]);
+
   const [prefillState, setPrefillState] = useState<{
     tableName: string;
     columns: Column[];
@@ -21,6 +34,7 @@ export default function Home() {
   } | null>(null);
 
   const [analysisCards, setAnalysisCards] = useState<AnalysisCard[] | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   const handlePrefill = (tableName: string, columns: Column[], values: Record<string, unknown>) => {
     setPrefillState({ tableName, columns, values });
@@ -28,7 +42,23 @@ export default function Home() {
 
   const handleAnalyze = useCallback((cards: AnalysisCard[]) => {
     setAnalysisCards(cards);
+    setIsAnalyzing(false);
   }, []);
+
+  const handleAnalyzeClick = useCallback(async () => {
+    if (!session.currentSessionId || isAnalyzing) return;
+    setIsAnalyzing(true);
+    try {
+      const response = await session.sendMessage('analyze my data');
+      if (response?.action === 'analyze' && response.analyses) {
+        handleAnalyze(response.analyses);
+      } else {
+        setIsAnalyzing(false);
+      }
+    } catch {
+      setIsAnalyzing(false);
+    }
+  }, [session, isAnalyzing, handleAnalyze]);
 
   const handleQueryToPanel = useCallback((card: Omit<VisualCard, 'id' | 'x' | 'y'>) => {
     const analysisCard: AnalysisCard = {
@@ -160,7 +190,30 @@ export default function Home() {
             relations={session.relations}
             onAutoLayout={handleAutoLayout}
             onOpenDashboard={handleOpenDashboard}
+            onImportCSV={() => setImportOpen(true)}
+            onAnalyzeClick={handleAnalyzeClick}
+            isAnalyzing={isAnalyzing}
           />
+
+          {importOpen && session.currentSessionId && (
+            <ImportModal
+              sessionId={session.currentSessionId}
+              hasExistingTables={session.tables.length > 0}
+              onClose={() => setImportOpen(false)}
+              onSuccess={handleImportSuccess}
+            />
+          )}
+
+          {importToast && (
+            <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+              <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-emerald-500/30 bg-[#0d0d12]/95 backdrop-blur-sm shadow-lg text-sm text-emerald-300">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                {importToast}
+              </div>
+            </div>
+          )}
 
           {prefillState && (
             <SlidePanel

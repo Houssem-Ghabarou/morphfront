@@ -18,6 +18,9 @@ interface CanvasProps {
   relations?: Relation[];
   onAutoLayout?: () => void;
   onOpenDashboard?: () => void;
+  onImportCSV?: () => void;
+  onAnalyzeClick?: () => void;
+  isAnalyzing?: boolean;
 }
 
 const MIN_SCALE = 0.2;
@@ -35,7 +38,7 @@ function describe(rel: Relation) {
   };
 }
 
-export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualCards, onRemoveVisualCard, onVisualCardPositionChange, relations = [], onAutoLayout, onOpenDashboard }: CanvasProps) {
+export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualCards, onRemoveVisualCard, onVisualCardPositionChange, relations = [], onAutoLayout, onOpenDashboard, onImportCSV, onAnalyzeClick, isAnalyzing }: CanvasProps) {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
   /** Click a row in any table to filter descendant tables along FK links (e.g. pick a client → meals / programs). */
@@ -368,6 +371,41 @@ export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualC
 
       {/* Toolbar — top-right */}
       <div className="absolute top-4 right-4 pointer-events-auto select-none flex items-center gap-2">
+        {/* Import CSV button */}
+        {sessionId && onImportCSV && (
+          <button
+            onClick={onImportCSV}
+            title="Import CSV"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 bg-[#111] border-[#2a2a2a] text-zinc-500 hover:border-violet-500/30 hover:text-violet-300 hover:bg-violet-600/15"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+            <span>Import CSV</span>
+          </button>
+        )}
+
+        {/* Analyze button */}
+        {tables.length > 0 && onAnalyzeClick && (
+          <button
+            onClick={onAnalyzeClick}
+            disabled={isAnalyzing}
+            title="Analyze all data"
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 bg-gradient-to-r from-violet-600/20 to-fuchsia-600/20 border-violet-500/30 text-violet-300 hover:from-violet-600/30 hover:to-fuchsia-600/30 hover:border-violet-500/50 hover:shadow-[0_0_12px_rgba(139,92,246,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isAnalyzing ? (
+              <div className="w-3 h-3 border border-violet-400/40 border-t-violet-400 rounded-full animate-spin" />
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4L12 2z" />
+              </svg>
+            )}
+            <span>{isAnalyzing ? 'Analyzing...' : 'Analyze'}</span>
+          </button>
+        )}
+
         {/* Auto-layout button */}
         {tables.length > 0 && onAutoLayout && (
           <button

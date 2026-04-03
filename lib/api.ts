@@ -27,6 +27,26 @@ async function request<T>(
   return res.json() as Promise<T>;
 }
 
+export interface ColumnSuggestion {
+  csvHeader: string;
+  pgName: string;
+  pgType: string;
+}
+
+export interface ColumnMapping {
+  csvHeader: string;
+  tableColumn: string | null;
+}
+
+export type ImportAnalysis =
+  | { flow: 'new'; tableName: string; columns: ColumnSuggestion[]; headers: string[]; rows: string[][] }
+  | { flow: 'existing'; tableName: string; mapping: ColumnMapping[]; headers: string[]; rows: string[][] };
+
+export interface ImportConfirmResult {
+  rowsImported: number;
+  tableName: string;
+}
+
 export const api = {
   getSessions(): Promise<{ sessions: Session[] }> {
     return request('/api/sessions');
@@ -108,6 +128,34 @@ export const api = {
     return request(`/api/data/${tableName}/schema`, {
       method: 'PATCH',
       body: JSON.stringify({ changes, row }),
+    });
+  },
+
+  analyzeCSV(file: File, sessionId: number, description?: string): Promise<ImportAnalysis> {
+    const form = new FormData();
+    form.append('csv', file);
+    const params = new URLSearchParams({ sessionId: String(sessionId) });
+    if (description) params.set('description', description);
+    return fetch(`${BASE_URL}/api/import/analyze?${params}`, {
+      method: 'POST',
+      body: form,
+    }).then(async (res) => {
+      if (!res.ok) {
+        const text = await res.text().catch(() => 'Unknown error');
+        throw new Error(`API ${res.status}: ${text}`);
+      }
+      return res.json() as Promise<ImportAnalysis>;
+    });
+  },
+
+  confirmImport(
+    payload:
+      | { flow: 'new'; sessionId: number; tableName: string; columns: ColumnSuggestion[]; headers: string[]; rows: string[][] }
+      | { flow: 'existing'; tableName: string; mapping: ColumnMapping[]; headers: string[]; rows: string[][] }
+  ): Promise<ImportConfirmResult> {
+    return request('/api/import/confirm', {
+      method: 'POST',
+      body: JSON.stringify(payload),
     });
   },
 };
