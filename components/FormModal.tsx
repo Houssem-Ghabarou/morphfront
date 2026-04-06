@@ -19,13 +19,28 @@ interface FormModalProps {
   moduleLabel?: string;
 }
 
-function getInputType(dataType: string): 'text' | 'number' | 'checkbox' | 'date' {
+function getInputType(dataType: string): 'text' | 'number' | 'checkbox' | 'date' | 'textarea' {
   const t = dataType.toLowerCase();
   if (t === 'boolean' || t === 'bool') return 'checkbox';
   if (t === 'date') return 'date';
+  if (t.includes('timestamp')) return 'date';
   if (t.includes('int') || t.includes('float') || t.includes('numeric') || t.includes('decimal') || t.includes('real') || t.includes('double') || t.includes('serial'))
     return 'number';
   return 'text';
+}
+
+/** Normalize any date/datetime string to YYYY-MM-DD for <input type="date"> */
+function toDateInputValue(val: string): string {
+  if (!val) return '';
+  // Already in YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+  try {
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return '';
+    return d.toISOString().slice(0, 10);
+  } catch {
+    return '';
+  }
 }
 
 const SKIP_COLUMNS = new Set(['id', 'created_at', 'updated_at']);
@@ -215,6 +230,21 @@ export function FormModal({ tableName, columns, relations, onClose, onSuccess, a
                         />
                         <span className="text-xs text-zinc-400">{val ? 'true' : 'false'}</span>
                       </div>
+                    ) : inputType === 'date' ? (
+                      <input
+                        type="date"
+                        value={toDateInputValue(val as string)}
+                        onChange={(e) => setValues((prev) => ({ ...prev, [col.column_name]: e.target.value }))}
+                        className="w-full px-3 py-2 rounded-lg bg-[#13131c] border border-[#1e1e2e] text-zinc-100 text-xs focus:outline-none focus:border-violet-500/60 focus:ring-1 focus:ring-violet-500/30 transition-colors [color-scheme:dark]"
+                      />
+                    ) : inputType === 'textarea' ? (
+                      <textarea
+                        value={val as string}
+                        onChange={(e) => setValues((prev) => ({ ...prev, [col.column_name]: e.target.value }))}
+                        placeholder={col.is_nullable === 'YES' ? 'optional' : `Enter ${fieldLabel.toLowerCase()}…`}
+                        rows={3}
+                        className="w-full px-3 py-2 rounded-lg bg-[#13131c] border border-[#1e1e2e] text-zinc-100 text-xs placeholder-zinc-600 focus:outline-none focus:border-violet-500/60 focus:ring-1 focus:ring-violet-500/30 transition-colors resize-none"
+                      />
                     ) : (
                       <input
                         type={inputType}

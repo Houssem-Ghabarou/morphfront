@@ -193,6 +193,7 @@ export default function Home() {
             onImportCSV={() => setImportOpen(true)}
             onAnalyzeClick={handleAnalyzeClick}
             isAnalyzing={isAnalyzing}
+            onDropTable={session.removeTable}
           />
 
           {importOpen && session.currentSessionId && (

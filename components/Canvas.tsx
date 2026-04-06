@@ -22,6 +22,7 @@ interface CanvasProps {
   onImportCSV?: () => void;
   onAnalyzeClick?: () => void;
   isAnalyzing?: boolean;
+  onDropTable?: (tableName: string) => void;
 }
 
 const MIN_SCALE = 0.2;
@@ -39,7 +40,7 @@ function describe(rel: Relation) {
   };
 }
 
-export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualCards, onRemoveVisualCard, onVisualCardPositionChange, relations = [], onAutoLayout, onOpenDashboard, onImportCSV, onAnalyzeClick, isAnalyzing }: CanvasProps) {
+export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualCards, onRemoveVisualCard, onVisualCardPositionChange, relations = [], onAutoLayout, onOpenDashboard, onImportCSV, onAnalyzeClick, isAnalyzing, onDropTable }: CanvasProps) {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
   /** Click a row in any table to filter descendant tables along FK links (e.g. pick a client → meals / programs). */
@@ -301,6 +302,7 @@ export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualC
                     setSelectedRow({ tableName: table.tableName, row });
                   }
                 }}
+                onDrop={onDropTable}
               />
             </div>
           ) : null

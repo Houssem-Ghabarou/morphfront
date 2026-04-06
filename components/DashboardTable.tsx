@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '@/lib/api';
 import { FormModal } from '@/components/FormModal';
+import { CellRenderer } from '@/components/CellRenderer';
 import type { SchemaColumn, DataRow, Relation } from '@/types';
 
 interface DashboardTableProps {
@@ -302,14 +303,8 @@ export function DashboardTable({ tableName, sessionId, relations = [] }: Dashboa
                         {dataColumns.map((col) => {
                           const val = row[col.column_name];
                           return (
-                            <td key={col.column_name} className="px-3 py-2.5 text-zinc-300 text-[11px] whitespace-nowrap max-w-[240px] overflow-hidden text-ellipsis">
-                              {val === null || val === undefined ? <span className="text-zinc-700 italic">—</span>
-                                : typeof val === 'boolean' ? (
-                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${val ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-zinc-800 text-zinc-500 border border-zinc-700'}`}>
-                                    <span className={`w-1.5 h-1.5 rounded-full ${val ? 'bg-emerald-400' : 'bg-zinc-600'}`} />
-                                    {String(val)}
-                                  </span>
-                                ) : String(val)}
+                            <td key={col.column_name} className="px-3 py-2.5 max-w-[260px]">
+                              <CellRenderer value={val} dataType={col.data_type} compact={false} />
                             </td>
                           );
                         })}

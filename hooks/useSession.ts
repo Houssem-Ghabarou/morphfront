@@ -28,6 +28,7 @@ interface UseSessionReturn {
   sendMessage: (text: string) => Promise<ChatResponse | null>;
   updateTablePosition: (tableName: string, x: number, y: number) => void;
   addOrUpdateTable: (tableName: string, x: number, y: number) => void;
+  removeTable: (tableName: string) => void;
   refreshSessionName: (id: number, name: string) => void;
   addVisualCard: (card: VisualCard) => void;
   removeVisualCard: (id: string) => void;
@@ -231,6 +232,11 @@ export function useSession(): UseSessionReturn {
     []
   );
 
+  const removeTable = useCallback((tableName: string) => {
+    setTables((prev) => prev.filter((t) => t.tableName !== tableName));
+    setRelations((prev) => prev.filter((r) => r.from !== tableName && r.to !== tableName));
+  }, []);
+
   const refreshSessionName = useCallback((id: number, name: string) => {
     setSessions((prev) =>
       prev.map((s) => (s.id === id ? { ...s, name } : s))
@@ -273,6 +279,7 @@ export function useSession(): UseSessionReturn {
     sendMessage,
     updateTablePosition,
     addOrUpdateTable,
+    removeTable,
     refreshSessionName,
     addVisualCard,
     removeVisualCard,

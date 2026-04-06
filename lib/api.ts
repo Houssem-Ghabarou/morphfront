@@ -120,6 +120,10 @@ export const api = {
     return request(`/api/data/${tableName}/${id}`, { method: 'DELETE' });
   },
 
+  dropTable(tableName: string, sessionId: number): Promise<{ ok: boolean }> {
+    return request(`/api/data/${tableName}/drop?sessionId=${sessionId}`, { method: 'DELETE' });
+  },
+
   alterAndInsert(
     tableName: string,
     changes: Array<{ action: string; column: string; newName?: string; newType?: string }>,

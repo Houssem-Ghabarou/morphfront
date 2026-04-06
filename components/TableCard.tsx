@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { FormModal } from '@/components/FormModal';
+import { CellRenderer } from '@/components/CellRenderer';
 import { filterRowsForAncestorSelection } from '@/lib/relationFilter';
 import type { SchemaColumn, DataRow, Relation } from '@/types';
 
@@ -23,6 +24,7 @@ interface TableCardProps {
   relations?: Relation[];
   selectedContext?: RowSelectionContext | null;
   onRowSelect?: (row: Record<string, unknown>) => void;
+  onDrop?: (tableName: string) => void;
 }
 
 function toModuleLabel(raw: string): string {
@@ -63,6 +65,7 @@ export function TableCard({
   canvasScale = 1,
   selectedContext = null,
   onRowSelect,
+  onDrop,
 }: TableCardProps) {
   const [columns, setColumns] = useState<SchemaColumn[]>([]);
   const [rows, setRows] = useState<DataRow[]>([]);
@@ -80,6 +83,8 @@ export function TableCard({
   const [sortState, setSortState] = useState<{ col: string; dir: 'asc' | 'desc' } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+  const [dropConfirm, setDropConfirm] = useState(false);
+  const [isDropping, setIsDropping] = useState(false);
 
   const cardRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ x, y });
@@ -99,11 +104,17 @@ export function TableCard({
       setColumns(schemaData.columns);
       setRows(rowsData.rows);
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('404')) {
+        // Table is gone from DB but still in session — silently remove from view
+        onDrop?.(tableName);
+        return;
+      }
       console.error(`Failed to fetch data for ${tableName}`, err);
     } finally {
       setIsLoading(false);
     }
-  }, [tableName]);
+  }, [tableName, onDrop]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -244,6 +255,23 @@ export function TableCard({
     return null;
   });
 
+  const handleDrop = async () => {
+    setIsDropping(true);
+    try {
+      await api.dropTable(tableName, sessionId);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      // 404 means the table is already gone from the DB — still remove from view
+      if (!msg.includes('404')) {
+        console.error('Drop failed', err);
+        setIsDropping(false);
+        setDropConfirm(false);
+        return;
+      }
+    }
+    onDrop?.(tableName);
+  };
+
   const openModal = (row?: DataRow) => {
     const el = cardRef.current;
     if (!el) return;
@@ -282,6 +310,27 @@ export function TableCard({
               className="shrink-0 w-5 h-5 flex items-center justify-center rounded text-zinc-600 hover:text-zinc-400 hover:bg-white/5 transition-colors">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             </button>
+            {dropConfirm ? (
+              <div className="flex items-center gap-1 shrink-0" onMouseDown={(e) => e.stopPropagation()}>
+                <span className="text-[9px] text-red-400 whitespace-nowrap">Drop?</span>
+                <button onClick={(e) => { e.stopPropagation(); handleDrop(); }} disabled={isDropping}
+                  className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30 transition-colors disabled:opacity-50">
+                  {isDropping ? '…' : 'Yes'}
+                </button>
+                <button onClick={(e) => { e.stopPropagation(); setDropConfirm(false); }}
+                  className="px-1.5 py-0.5 rounded text-[9px] font-medium bg-zinc-800 text-zinc-400 hover:bg-zinc-700 border border-zinc-700 transition-colors">
+                  No
+                </button>
+              </div>
+            ) : (
+              <button onClick={(e) => { e.stopPropagation(); setDropConfirm(true); }} title="Drop module"
+                className="shrink-0 w-5 h-5 flex items-center justify-center rounded text-zinc-700 hover:text-red-400 hover:bg-red-500/10 transition-colors">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                  <path d="M10 11v6M14 11v6M9 6V4h6v2"/>
+                </svg>
+              </button>
+            )}
           </div>
 
           {/* Search bar */}
@@ -349,11 +398,8 @@ export function TableCard({
                           {dataColumns.map((col) => {
                             const val = row[col.column_name];
                             return (
-                              <td key={col.column_name} className="px-3 py-2 text-zinc-300 text-[11px] whitespace-nowrap max-w-[200px] overflow-hidden text-ellipsis">
-                                {val === null || val === undefined ? <span className="text-zinc-700 italic">—</span>
-                                  : typeof val === 'boolean' ? (
-                                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${val ? 'bg-green-500/10 text-green-400' : 'bg-zinc-800 text-zinc-500'}`}>{String(val)}</span>
-                                  ) : String(val)}
+                              <td key={col.column_name} className="px-3 py-2 max-w-[220px]">
+                                <CellRenderer value={val} dataType={col.data_type} compact />
                               </td>
                             );
                           })}
