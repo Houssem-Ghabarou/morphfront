@@ -15,7 +15,7 @@ interface ChatPanelProps {
   isSending: boolean;
   sessionId: number | null;
   onSend: (text: string) => Promise<ChatResponse | null>;
-  onTableAction: (tableName: string, x: number, y: number) => void;
+  onTableAction: (tableName: string, x: number, y: number, columnSources?: Record<string, string>) => void;
   existingTables: TableCardData[];
   onPrefill: (tableName: string, columns: Column[], values: Record<string, unknown>) => void;
   onQueryResult: (card: Omit<VisualCard, 'id' | 'x' | 'y'>) => void;
@@ -389,12 +389,12 @@ export function ChatPanel({
     }
     if (response.action === 'create' && response.schema?.tableName) {
       const pos = getNextCardPosition();
-      onTableAction(response.schema.tableName, pos.x, pos.y);
+      onTableAction(response.schema.tableName, pos.x, pos.y, response.columnSources);
     }
     if (response.action === 'create_many' && response.schemas) {
       const baseX = 60 + (existingTables.length % 3) * 380;
       const baseY = 60 + Math.floor(existingTables.length / 3) * 320;
-      response.schemas.forEach((schema, i) => onTableAction(schema.tableName, baseX + i * 380, baseY));
+      response.schemas.forEach((schema, i) => onTableAction(schema.tableName, baseX + i * 380, baseY, response.columnSources));
     }
     if (response.action === 'alter' && response.schema?.tableName) {
       window.dispatchEvent(new CustomEvent('morph:refresh', { detail: { tableName: response.schema.tableName } }));
@@ -514,12 +514,12 @@ export function ChatPanel({
                 if (!response) return;
                 if (response.action === 'create' && response.schema?.tableName) {
                   const pos = getNextCardPosition();
-                  onTableAction(response.schema.tableName, pos.x, pos.y);
+                  onTableAction(response.schema.tableName, pos.x, pos.y, response.columnSources);
                 }
                 if (response.action === 'create_many' && response.schemas) {
                   const baseX = 60 + (existingTables.length % 3) * 380;
                   const baseY = 60 + Math.floor(existingTables.length / 3) * 320;
-                  response.schemas.forEach((schema, i) => onTableAction(schema.tableName, baseX + i * 380, baseY));
+                  response.schemas.forEach((schema, i) => onTableAction(schema.tableName, baseX + i * 380, baseY, response.columnSources));
                 }
               }}
             />

@@ -33,6 +33,7 @@ export interface SessionTable {
   table_name: string;
   pos_x: number;
   pos_y: number;
+  column_sources?: Record<string, string>;
 }
 
 export interface SessionDetail {
@@ -61,6 +62,7 @@ export interface ChatResponse {
   alreadyExisted?: boolean;
   sessionName?: string;
   suggestion?: string;
+  columnSources?: Record<string, string>;
   values?: Record<string, unknown>;
   rows?: Record<string, unknown>[];
   columns?: string[];
@@ -99,6 +101,8 @@ export interface TableCardData {
   tableName: string;
   x: number;
   y: number;
+  /** Maps column_name → source_table — LLM-detected, used to populate dropdowns */
+  columnSources?: Record<string, string>;
 }
 
 export interface DataRow {

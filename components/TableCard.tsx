@@ -18,6 +18,7 @@ interface TableCardProps {
   y: number;
   sessionId: number;
   isNew?: boolean;
+  columnSources?: Record<string, string>;
   onPositionChange: (tableName: string, x: number, y: number) => void;
   canvasOffset: { x: number; y: number };
   canvasScale?: number;
@@ -60,6 +61,7 @@ export function TableCard({
   sessionId,
   relations = [],
   isNew = false,
+  columnSources,
   onPositionChange,
   canvasOffset,
   canvasScale = 1,
@@ -452,6 +454,7 @@ export function TableCard({
           tableName={tableName}
           columns={columns}
           relations={relations}
+          columnSources={columnSources}
           anchorRect={modalAnchor}
           editRow={editingRow ?? undefined}
           moduleLabel={singularLabel}

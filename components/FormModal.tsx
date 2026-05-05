@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useLayoutEffect, type CSSProperties } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect, useMemo, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '@/lib/api';
 import type { SchemaColumn, Relation, DataRow } from '@/types';
@@ -11,6 +11,8 @@ interface FormModalProps {
   tableName: string;
   columns: SchemaColumn[];
   relations: Relation[];
+  /** LLM-detected column → source table mappings for smart dropdowns */
+  columnSources?: Record<string, string>;
   onClose: () => void;
   onSuccess: () => void;
   anchorRect: DOMRect;
@@ -43,12 +45,98 @@ function toDateInputValue(val: string): string {
   }
 }
 
+// ─── Searchable dropdown ──────────────────────────────────────────────────────
+
+function SearchableDropdown({
+  options,
+  value,
+  onChange,
+  placeholder,
+}: {
+  options: FkOption[];
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const filtered = useMemo(() => {
+    const q = query.toLowerCase();
+    return q ? options.filter((o) => o.label.toLowerCase().includes(q)) : options;
+  }, [query, options]);
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const select = (opt: FkOption) => {
+    onChange(String(opt.value));
+    setQuery('');
+    setOpen(false);
+  };
+
+  const clear = () => { onChange(''); setQuery(''); };
+
+  return (
+    <div ref={containerRef} className="relative">
+      <div className="flex items-center w-full rounded-lg bg-[#13131c] border border-[#1e1e2e] focus-within:border-violet-500/60 focus-within:ring-1 focus-within:ring-violet-500/30 transition-colors overflow-hidden">
+        {value ? (
+          <div className="flex items-center gap-1.5 flex-1 px-3 py-2">
+            <span className="text-xs text-zinc-100 flex-1 truncate">{value}</span>
+            <button type="button" onClick={clear} className="text-zinc-600 hover:text-zinc-400 shrink-0">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+        ) : (
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+            onFocus={() => setOpen(true)}
+            placeholder={placeholder ?? 'Search…'}
+            className="flex-1 px-3 py-2 bg-transparent text-zinc-100 text-xs placeholder-zinc-600 focus:outline-none"
+          />
+        )}
+        <button type="button" onClick={() => { if (value) clear(); else setOpen((v) => !v); }}
+          className="px-2 text-zinc-600 hover:text-zinc-400 shrink-0">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M6 9l6 6 6-6"/>
+          </svg>
+        </button>
+      </div>
+      {open && filtered.length > 0 && (
+        <div className="absolute z-[100] mt-1 w-full max-h-48 overflow-y-auto rounded-lg bg-[#13131c] border border-[#2a2a3a] shadow-xl">
+          {filtered.map((opt) => (
+            <button
+              key={String(opt.value)}
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); select(opt); }}
+              className="w-full text-left px-3 py-2 text-xs text-zinc-300 hover:bg-violet-500/10 hover:text-violet-300 transition-colors"
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const SKIP_COLUMNS = new Set(['id', 'created_at', 'updated_at']);
 const MODAL_MAX_W = 448;
 const MODAL_MIN_W = 280;
 const VIEW_MARGIN = 8;
 
-export function FormModal({ tableName, columns, relations, onClose, onSuccess, anchorRect, editRow, moduleLabel }: FormModalProps) {
+export function FormModal({ tableName, columns, relations, columnSources, onClose, onSuccess, anchorRect, editRow, moduleLabel }: FormModalProps) {
   const isEditing = !!editRow;
   const editableColumns = columns.filter((c) => !SKIP_COLUMNS.has(c.column_name));
 
@@ -121,6 +209,37 @@ export function FormModal({ tableName, columns, relations, onClose, onSuccess, a
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tableName, relations]);
+
+  // LLM-declared column sources: fetch values from the source table and expand comma-separated cells
+  useEffect(() => {
+    if (!columnSources) return;
+    for (const [colName, sourceTable] of Object.entries(columnSources)) {
+      api.getTableData(sourceTable)
+        .then(({ rows }) => {
+          const seen = new Set<string>();
+          const options: FkOption[] = [];
+          for (const row of rows) {
+            for (const val of Object.values(row)) {
+              if (val == null || typeof val === 'boolean') continue;
+              const str = String(val).trim();
+              if (!str) continue;
+              const parts = str.includes(',') ? str.split(',').map((p) => p.trim()).filter(Boolean) : [str];
+              for (const part of parts) {
+                if (!seen.has(part)) {
+                  seen.add(part);
+                  options.push({ value: part, label: part });
+                }
+              }
+            }
+          }
+          if (options.length > 0) {
+            setFkOptions((prev) => ({ ...prev, [colName]: options }));
+          }
+        })
+        .catch(() => {});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [columnSources]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -204,22 +323,18 @@ export function FormModal({ tableName, columns, relations, onClose, onSuccess, a
                     <label className="block text-xs font-medium text-zinc-400 mb-1.5">
                       <span className="text-zinc-200">{fkOpts ? fieldLabel.replace(/ Id$/, '') : fieldLabel}</span>
                       <span className="ml-2 text-[10px] text-zinc-600 font-mono">
-                        {fkOpts ? 'linked record' : col.data_type}
+                        {fkOpts ? 'pick or type' : col.data_type}
                       </span>
                       {col.is_nullable === 'YES' && <span className="ml-1 text-[10px] text-zinc-700">optional</span>}
                     </label>
 
                     {fkOpts ? (
-                      <select
+                      <SearchableDropdown
+                        options={fkOpts}
                         value={val as string}
-                        onChange={(e) => setValues((prev) => ({ ...prev, [col.column_name]: e.target.value }))}
-                        className="w-full px-3 py-2 rounded-lg bg-[#13131c] border border-[#1e1e2e] text-zinc-100 text-xs focus:outline-none focus:border-violet-500/60 focus:ring-1 focus:ring-violet-500/30 transition-colors"
-                      >
-                        <option value="">— select —</option>
-                        {fkOpts.map((opt) => (
-                          <option key={String(opt.value)} value={opt.value}>{opt.label}</option>
-                        ))}
-                      </select>
+                        onChange={(v) => setValues((prev) => ({ ...prev, [col.column_name]: v }))}
+                        placeholder={`Search ${fieldLabel.toLowerCase()}…`}
+                      />
                     ) : inputType === 'checkbox' ? (
                       <div className="flex items-center gap-2">
                         <input

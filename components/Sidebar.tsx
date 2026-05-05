@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { Session } from '@/types';
 import { MorphSidebarBrand } from '@/components/MorphLogo';
+import { api } from '@/lib/api';
 
 interface SidebarProps {
   sessions: Session[];
@@ -493,7 +494,16 @@ export function Sidebar({
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/80" />
             <p className="text-[9px] text-zinc-700">Connected</p>
           </div>
-          <p className="text-[9px] text-zinc-800 font-mono">v0.1</p>
+          <button
+            onClick={async () => {
+              await api.logout().catch(() => {});
+              window.location.href = '/signin';
+            }}
+            className="text-[9px] text-zinc-600 hover:text-zinc-400 transition-colors cursor-pointer"
+            title="Sign out"
+          >
+            Sign out
+          </button>
         </div>
       </div>
 

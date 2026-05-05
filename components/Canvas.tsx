@@ -291,6 +291,7 @@ export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualC
                 canvasOffset={ZERO_OFFSET}
                 canvasScale={scale}
                 relations={relations}
+                columnSources={table.columnSources}
                 selectedContext={selectedRow}
                 onRowSelect={(row) => {
                   if (

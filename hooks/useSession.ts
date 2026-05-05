@@ -27,7 +27,7 @@ interface UseSessionReturn {
   deleteSession: (id: number) => Promise<void>;
   sendMessage: (text: string) => Promise<ChatResponse | null>;
   updateTablePosition: (tableName: string, x: number, y: number) => void;
-  addOrUpdateTable: (tableName: string, x: number, y: number) => void;
+  addOrUpdateTable: (tableName: string, x: number, y: number, columnSources?: Record<string, string>) => void;
   removeTable: (tableName: string) => void;
   refreshSessionName: (id: number, name: string) => void;
   addVisualCard: (card: VisualCard) => void;
@@ -98,6 +98,7 @@ export function useSession(): UseSessionReturn {
         tableName: t.table_name,
         x: t.pos_x,
         y: t.pos_y,
+        ...(t.column_sources ? { columnSources: t.column_sources } : {}),
       }));
       setTables(cardData);
     } catch (err) {
@@ -220,13 +221,14 @@ export function useSession(): UseSessionReturn {
   );
 
   const addOrUpdateTable = useCallback(
-    (tableName: string, x: number, y: number) => {
+    (tableName: string, x: number, y: number, columnSources?: Record<string, string>) => {
       setTables((prev) => {
         const exists = prev.find((t) => t.tableName === tableName);
         if (exists) {
-          return prev;
+          if (!columnSources) return prev;
+          return prev.map((t) => t.tableName === tableName ? { ...t, columnSources } : t);
         }
-        return [...prev, { tableName, x, y }];
+        return [...prev, { tableName, x, y, ...(columnSources ? { columnSources } : {}) }];
       });
     },
     []

@@ -19,6 +19,7 @@ async function request<T>(
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
     headers,
+    credentials: 'include',
   });
   if (!res.ok) {
     const text = await res.text().catch(() => 'Unknown error');
@@ -47,7 +48,34 @@ export interface ImportConfirmResult {
   tableName: string;
 }
 
+export interface AuthUser {
+  id: number;
+  email: string;
+}
+
 export const api = {
+  register(email: string, password: string): Promise<{ user: AuthUser }> {
+    return request('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+  },
+
+  login(email: string, password: string): Promise<{ user: AuthUser }> {
+    return request('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+  },
+
+  logout(): Promise<{ ok: boolean }> {
+    return request('/api/auth/logout', { method: 'POST' });
+  },
+
+  getMe(): Promise<{ user: AuthUser }> {
+    return request('/api/auth/me');
+  },
+
   getSessions(): Promise<{ sessions: Session[] }> {
     return request('/api/sessions');
   },
@@ -143,6 +171,7 @@ export const api = {
     return fetch(`${BASE_URL}/api/import/analyze?${params}`, {
       method: 'POST',
       body: form,
+      credentials: 'include',
     }).then(async (res) => {
       if (!res.ok) {
         const text = await res.text().catch(() => 'Unknown error');
