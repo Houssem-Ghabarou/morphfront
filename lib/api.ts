@@ -76,6 +76,13 @@ export const api = {
     return request('/api/auth/me');
   },
 
+  changePassword(currentPassword: string, newPassword: string): Promise<{ ok: boolean }> {
+    return request('/api/auth/password', {
+      method: 'PATCH',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+  },
+
   getSessions(): Promise<{ sessions: Session[] }> {
     return request('/api/sessions');
   },

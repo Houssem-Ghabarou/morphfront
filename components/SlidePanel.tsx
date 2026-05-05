@@ -201,22 +201,22 @@ export function SlidePanel({
       className="fixed right-0 top-0 h-screen z-50 flex flex-col"
       style={{
         width: 420,
-        background: '#111',
-        borderLeft: '1px solid #222',
-        boxShadow: '-8px 0 32px rgba(0,0,0,0.6)',
+        background: 'var(--bg-sidebar)',
+        borderLeft: '1px solid var(--border)',
+        boxShadow: '-8px 0 32px rgba(0,0,0,0.4)',
         transform: visible ? 'translateX(0)' : 'translateX(100%)',
         transition: 'transform 0.25s cubic-bezier(0.4,0,0.2,1)',
       }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e1e1e] shrink-0">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)] shrink-0">
         <div className="flex items-center gap-2.5">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="1.8">
             <ellipse cx="12" cy="5" rx="9" ry="3" />
             <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
             <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
           </svg>
-          <span className="text-sm font-medium text-zinc-200">{tableName.replace(/^s\d+_/, '')}</span>
+          <span className="text-sm font-medium" style={{ color: 'var(--text)' }}>{tableName.replace(/^s\d+_/, '')}</span>
         </div>
         <button
           onClick={onCancel}
@@ -228,8 +228,8 @@ export function SlidePanel({
       </div>
 
       {/* Subheader */}
-      <div className="px-5 py-3 border-b border-[#1a1a1a] shrink-0">
-        <p className="text-[11px] text-zinc-500 leading-relaxed">
+      <div className="px-5 py-3 border-b border-[var(--border-muted)] shrink-0">
+        <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
           Review and confirm. You can edit column names, change types, or add new columns.
         </p>
       </div>
@@ -246,8 +246,8 @@ export function SlidePanel({
               key={col.id}
               className="rounded-lg border p-3 space-y-2"
               style={{
-                borderColor: col.isNew ? 'rgba(139,92,246,0.35)' : modified ? 'rgba(245,158,11,0.3)' : '#1e1e1e',
-                background: col.isNew ? 'rgba(139,92,246,0.04)' : '#0d0d0d',
+                borderColor: col.isNew ? 'rgba(139,92,246,0.35)' : modified ? 'rgba(245,158,11,0.3)' : 'var(--border)',
+                background: col.isNew ? 'rgba(139,92,246,0.04)' : 'var(--bg-input)',
               }}
             >
               {/* Column header row: name + type + badges + delete */}
@@ -258,7 +258,7 @@ export function SlidePanel({
                   onChange={(e) => updateCol(col.id, { name: e.target.value })}
                   onBlur={(e) => updateCol(col.id, { name: toSnakeCase(e.target.value) })}
                   placeholder="column_name"
-                  className="flex-1 bg-transparent border-b border-[#2a2a2a] focus:border-violet-500/50 text-xs text-zinc-200 font-mono px-1 py-1 focus:outline-none min-w-0"
+                  className="flex-1 bg-transparent border-b border-[var(--border)] focus:border-violet-500/50 text-xs font-mono px-1 py-1 focus:outline-none min-w-0" style={{ color: 'var(--text)' }}
                 />
                 <select
                   value={col.type}
@@ -271,7 +271,8 @@ export function SlidePanel({
                       updateCol(col.id, { type: newType, value: '' });
                     }
                   }}
-                  className="bg-[#0a0a0a] border border-[#2a2a2a] rounded px-1.5 py-1 text-[10px] text-zinc-400 focus:border-violet-500/50 focus:outline-none shrink-0"
+                  className="bg-[var(--bg-input)] border border-[var(--border)] rounded px-1.5 py-1 text-[10px] focus:border-violet-500/50 focus:outline-none shrink-0"
+                  style={{ color: 'var(--text-muted)' }}
                 >
                   {PG_TYPES.map((t) => (
                     <option key={t} value={t}>{t}</option>
@@ -300,7 +301,7 @@ export function SlidePanel({
                   <select
                     value={col.value as string | number}
                     onChange={(e) => handleValueChange(col.id, col.type, e.target.value)}
-                    className="bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg px-3 py-2 text-sm text-zinc-200 focus:border-violet-500/50 focus:outline-none w-full"
+                    className="bg-[var(--bg-input)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:border-violet-500/50 focus:outline-none w-full" style={{ color: 'var(--text)' }}
                   >
                     <option value="">— select —</option>
                     {fkOpts.map((opt) => (
@@ -326,7 +327,7 @@ export function SlidePanel({
                     value={col.value as string | number}
                     onChange={(e) => handleValueChange(col.id, col.type, e.target.value)}
                     placeholder="value"
-                    className="bg-[#0a0a0a] border border-[#2a2a2a] rounded-lg px-3 py-2 text-sm text-zinc-200 focus:border-violet-500/50 focus:outline-none w-full"
+                    className="bg-[var(--bg-input)] border border-[var(--border)] rounded-lg px-3 py-2 text-sm focus:border-violet-500/50 focus:outline-none w-full" style={{ color: 'var(--text)' }}
                   />
                 )}
               </div>
@@ -337,7 +338,7 @@ export function SlidePanel({
         {/* Add column button */}
         <button
           onClick={addColumn}
-          className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-dashed border-[#2a2a2a] text-xs text-zinc-500 hover:text-violet-400 hover:border-violet-500/40 hover:bg-violet-500/5 transition-all"
+          className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-dashed border-[var(--border)] text-xs text-zinc-500 hover:text-violet-400 hover:border-violet-500/40 hover:bg-violet-500/5 transition-all"
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
@@ -347,7 +348,7 @@ export function SlidePanel({
       </div>
 
       {/* Footer buttons */}
-      <div className="px-5 py-4 border-t border-[#1e1e1e] flex gap-3 shrink-0">
+      <div className="px-5 py-4 border-t border-[var(--border)] flex gap-3 shrink-0">
         <button
           onClick={handleConfirm}
           disabled={isLoading}
@@ -362,7 +363,7 @@ export function SlidePanel({
         <button
           onClick={onCancel}
           disabled={isLoading}
-          className="flex-1 py-2 rounded-lg border border-[#2a2a2a] text-sm font-medium text-zinc-400 hover:text-zinc-200 hover:border-[#3a3a3a] disabled:opacity-50 transition-colors"
+          className="flex-1 py-2 rounded-lg border border-[var(--border)] text-sm font-medium text-zinc-400 hover:text-zinc-200 hover:border-[var(--border-soft)] disabled:opacity-50 transition-colors"
         >
           Cancel
         </button>

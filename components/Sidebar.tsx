@@ -5,6 +5,9 @@ import { createPortal } from 'react-dom';
 import type { Session } from '@/types';
 import { MorphSidebarBrand } from '@/components/MorphLogo';
 import { api } from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
+import { ChangePasswordModal } from '@/components/ChangePasswordModal';
+import { useTheme, type Theme } from '@/components/ThemeProvider';
 
 interface SidebarProps {
   sessions: Session[];
@@ -132,8 +135,8 @@ function NewProjectModal({
       onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
     >
       <div
-        className="w-[360px] rounded-2xl border border-[#1e1e2e] shadow-2xl animate-fade-in overflow-hidden"
-        style={{ background: '#13131c' }}
+        className="w-[360px] rounded-2xl shadow-2xl animate-fade-in overflow-hidden"
+        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e1e2e]">
@@ -294,10 +297,25 @@ export function Sidebar({
   const [showNewModal, setShowNewModal] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [pinnedIds, setPinnedIds] = useState<Set<number>>(new Set());
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+  const { user, logout } = useAuth();
+  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     setPinnedIds(loadPinnedIds());
   }, []);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    }
+    if (userMenuOpen) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [userMenuOpen]);
 
   const togglePin = (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
@@ -351,7 +369,7 @@ export function Sidebar({
   if (collapsed) {
     return (
       <>
-        <div className="flex flex-col items-center py-3 w-12 shrink-0 border-r border-[#1a1a24] bg-[#0a0a0f] gap-2">
+        <div className="flex flex-col items-center py-3 w-12 shrink-0 border-r border-[var(--border-muted)] bg-[var(--bg-sidebar)] gap-2">
           <button
             onClick={() => setCollapsed(false)}
             className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all duration-150 cursor-pointer"
@@ -401,9 +419,9 @@ export function Sidebar({
   // ── Expanded view ───────────────────────────────────────────────────────────
   return (
     <>
-      <div className="flex flex-col w-[260px] shrink-0 border-r border-[#1a1a24] bg-[#0a0a0f] overflow-hidden">
+      <div className="flex flex-col w-[260px] shrink-0 border-r border-[var(--border-muted)] bg-[var(--bg-sidebar)] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3.5 border-b border-[#1a1a24]">
+        <div className="flex items-center justify-between px-4 py-3.5 border-b border-[var(--border-muted)]">
           <MorphSidebarBrand />
           <button
             onClick={() => setCollapsed(true)}
@@ -488,22 +506,146 @@ export function Sidebar({
           )}
         </div>
 
-        {/* Footer */}
-        <div className="px-4 py-3 border-t border-[#1a1a24] flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/80" />
-            <p className="text-[9px] text-zinc-700">Connected</p>
+        {/* Theme switcher */}
+        <div className="px-3 pt-2.5 pb-1.5 border-t border-[var(--border-muted)]">
+          <div className="flex items-center gap-1 p-0.5 rounded-lg" style={{ background: 'var(--border-muted)' }}>
+            {(
+              [
+                {
+                  id: 'dark' as Theme,
+                  label: 'Dark',
+                  icon: (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"/>
+                    </svg>
+                  ),
+                },
+                {
+                  id: 'dim' as Theme,
+                  label: 'Dim',
+                  icon: (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <circle cx="12" cy="12" r="5"/>
+                      <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                    </svg>
+                  ),
+                },
+                {
+                  id: 'light' as Theme,
+                  label: 'Light',
+                  icon: (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                      <circle cx="12" cy="12" r="5"/>
+                      <path stroke="currentColor" strokeWidth="2" strokeLinecap="round" d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                    </svg>
+                  ),
+                },
+              ] as const
+            ).map(({ id, label, icon }) => {
+              const active = theme === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => setTheme(id)}
+                  title={label}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-md text-[10px] font-medium transition-all duration-150 cursor-pointer"
+                  style={{
+                    background: active ? 'var(--bg-card)' : 'transparent',
+                    color: active ? 'var(--accent-light)' : 'var(--text-subtle)',
+                    boxShadow: active ? '0 1px 3px rgba(0,0,0,0.2)' : 'none',
+                  }}
+                >
+                  {icon}
+                  {label}
+                </button>
+              );
+            })}
           </div>
+        </div>
+
+        {/* Footer — user profile */}
+        <div className="px-3 py-2 relative" ref={userMenuRef}>
           <button
-            onClick={async () => {
-              await api.logout().catch(() => {});
-              window.location.href = '/signin';
-            }}
-            className="text-[9px] text-zinc-600 hover:text-zinc-400 transition-colors cursor-pointer"
-            title="Sign out"
+            onClick={() => setUserMenuOpen((v) => !v)}
+            className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-white/4 transition-all cursor-pointer group"
           >
-            Sign out
+            {/* Avatar */}
+            <div
+              className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold text-white shrink-0"
+              style={{ background: 'linear-gradient(135deg,#7c3aed,#a855f7)' }}
+            >
+              {user?.email?.[0]?.toUpperCase() ?? '?'}
+            </div>
+            {/* Email */}
+            <span className="flex-1 text-left text-xs text-zinc-400 truncate group-hover:text-zinc-200 transition-colors">
+              {user?.email ?? '…'}
+            </span>
+            {/* Chevron */}
+            <svg
+              width="12" height="12" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+              className={`text-zinc-600 shrink-0 transition-transform duration-150 ${userMenuOpen ? 'rotate-180' : ''}`}
+            >
+              <path d="M6 9l6 6 6-6" />
+            </svg>
           </button>
+
+          {/* Popover menu */}
+          {userMenuOpen && (
+            <div
+              className="absolute bottom-[calc(100%+4px)] left-3 right-3 rounded-xl overflow-hidden z-50"
+              style={{
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border)',
+                boxShadow: '0 -8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(124,58,237,0.06)',
+              }}
+            >
+              {/* Profile header */}
+              <div className="px-3 py-3 border-b border-[var(--border)]">
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold text-white shrink-0"
+                    style={{ background: 'linear-gradient(135deg,#7c3aed,#a855f7)' }}
+                  >
+                    {user?.email?.[0]?.toUpperCase() ?? '?'}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-zinc-200 truncate">{user?.email}</p>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400/80" />
+                      <p className="text-[10px] text-zinc-500">Active</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="p-1">
+                <button
+                  onClick={() => { setUserMenuOpen(false); setShowChangePassword(true); }}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs text-zinc-300 hover:text-zinc-100 hover:bg-white/5 transition-all cursor-pointer text-left"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                  Change password
+                </button>
+
+                <div className="h-px bg-[var(--border)] mx-1 my-1" />
+
+                <button
+                  onClick={() => { setUserMenuOpen(false); logout(); }}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs text-red-400 hover:text-red-300 hover:bg-red-500/8 transition-all cursor-pointer text-left"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+                  </svg>
+                  Sign out
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -513,6 +655,10 @@ export function Sidebar({
           onCancel={() => setShowNewModal(false)}
           isCreating={isCreating}
         />
+      )}
+
+      {showChangePassword && (
+        <ChangePasswordModal onClose={() => setShowChangePassword(false)} />
       )}
     </>
   );

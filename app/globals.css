@@ -1,18 +1,104 @@
 @import "tailwindcss";
 
-:root {
-  --background: #0d0d12;
-  --canvas-bg: #141420;
-  --foreground: #e2e2e8;
-  --card: #1a1a28;
-  --card-border: #26263a;
-  --accent: #7c3aed;
-  --accent-light: #8b5cf6;
-  --muted: #6b6b7a;
-  --sidebar-bg: #0a0a0f;
-  --dot-color: rgba(139, 92, 246, 0.12);
+/* ══════════════════════════════════════════════════════════════════════════════
+   THEME TOKENS
+   data-theme="dark" | "dim" | "light"  (dark = default)
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+:root,
+[data-theme="dark"] {
+  /* Pure neutral gray — inspired by ChatGPT dark */
+  --bg:            #212121;
+  --bg-canvas:     #212121;
+  --bg-sidebar:    #171717;
+  --bg-card:       #2f2f2f;
+  --bg-card-hover: #383838;
+  --bg-input:      #404040;
+  --bg-chat-msg:   #2a2a2a;
+
+  --border:        #3f3f3f;
+  --border-soft:   #353535;
+  --border-muted:  #2c2c2c;
+
+  --text:          #ececec;   /* near-white, high contrast */
+  --text-muted:    #b4b4b4;   /* clearly readable */
+  --text-subtle:   #888888;   /* still visible */
+
+  --accent:        #7c3aed;
+  --accent-light:  #a78bfa;
+  --dot-color:     rgba(255,255,255,0.04);
+
+  --background:   var(--bg);
+  --canvas-bg:    var(--bg-canvas);
+  --foreground:   var(--text);
+  --card:         var(--bg-card);
+  --card-border:  var(--border);
+  --muted:        var(--text-muted);
+  --sidebar-bg:   var(--bg-sidebar);
 }
 
+[data-theme="dim"] {
+  /* Comfortable gray — VS Code Dark+ style */
+  --bg:            #1e1e1e;
+  --bg-canvas:     #1e1e1e;
+  --bg-sidebar:    #252526;
+  --bg-card:       #2d2d2d;
+  --bg-card-hover: #3c3c3c;
+  --bg-input:      #3c3c3c;
+  --bg-chat-msg:   #2d2d2d;
+
+  --border:        #474747;
+  --border-soft:   #3a3a3a;
+  --border-muted:  #333333;
+
+  --text:          #d4d4d4;   /* VS Code default text */
+  --text-muted:    #9d9d9d;
+  --text-subtle:   #6a6a6a;
+
+  --accent:       #7c3aed;
+  --accent-light: #a78bfa;
+  --dot-color:    rgba(255,255,255,0.03);
+
+  --background:   var(--bg);
+  --canvas-bg:    var(--bg-canvas);
+  --foreground:   var(--text);
+  --card:         var(--bg-card);
+  --card-border:  var(--border);
+  --muted:        var(--text-muted);
+  --sidebar-bg:   var(--bg-sidebar);
+}
+
+[data-theme="light"] {
+  --bg:          #f4f4f9;
+  --bg-canvas:   #ededf5;
+  --bg-sidebar:  #ffffff;
+  --bg-card:     #ffffff;
+  --bg-card-hover: #f8f8fc;
+  --bg-input:    #f0f0f8;
+  --bg-chat-msg: #f0f0f8;
+
+  --border:       #dcdcec;
+  --border-soft:  #e6e6f2;
+  --border-muted: #ebebf5;
+
+  --text:        #1a1a2e;
+  --text-muted:  #60607a;
+  --text-subtle: #9898b0;
+
+  --accent:       #7c3aed;
+  --accent-light: #9d6df0;
+  --dot-color:    rgba(124,58,237,0.07);
+
+  --background:   var(--bg);
+  --canvas-bg:    var(--bg-canvas);
+  --foreground:   var(--text);
+  --card:         var(--bg-card);
+  --card-border:  var(--border);
+  --muted:        var(--text-muted);
+  --sidebar-bg:   var(--bg-sidebar);
+}
+
+/* ── Tailwind token bridge ───────────────────────────────────────────────────── */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -20,50 +106,52 @@
   --font-mono: var(--font-geist-mono);
 }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
+/* ══════════════════════════════════════════════════════════════════════════════
+   BASE
+   ══════════════════════════════════════════════════════════════════════════════ */
 
-html,
-body {
-  height: 100%;
-  margin: 0;
-  padding: 0;
-}
+*,*::before,*::after { box-sizing: border-box; }
+
+html, body { height: 100%; margin: 0; padding: 0; }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg);
+  color: var(--text);
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow: hidden;
 }
 
+/* ══════════════════════════════════════════════════════════════════════════════
+   COMPONENT UTILITY CLASSES  (all use CSS vars → free theme switching)
+   ══════════════════════════════════════════════════════════════════════════════ */
+
 .canvas-bg {
-  background-color: var(--canvas-bg);
-  background-image: radial-gradient(
-    circle,
-    var(--dot-color) 1px,
-    transparent 1px
-  );
+  background-color: var(--bg-canvas);
+  background-image: radial-gradient(circle, var(--dot-color) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
 .glass-card {
-  background: var(--card);
-  border: 1px solid var(--card-border);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
   box-shadow:
-    0 4px 16px -4px rgba(0, 0, 0, 0.6),
-    0 2px 4px -2px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    0 4px 16px -4px rgba(0,0,0,0.25),
+    0 2px 4px -2px rgba(0,0,0,0.15),
+    inset 0 1px 0 rgba(255,255,255,0.04);
+}
+
+[data-theme="light"] .glass-card {
+  box-shadow:
+    0 2px 12px -2px rgba(0,0,0,0.08),
+    0 1px 4px -1px rgba(0,0,0,0.06),
+    inset 0 1px 0 rgba(255,255,255,0.8);
 }
 
 .sidebar-item-active {
-  background: rgba(124, 58, 237, 0.1);
-  border-left: 2px solid #7c3aed;
+  background: rgba(124,58,237,0.1);
+  border-left: 2px solid var(--accent);
 }
 
 .sidebar-item {
@@ -72,109 +160,161 @@ body {
 }
 
 .sidebar-item:hover {
-  background: rgba(255, 255, 255, 0.04);
-  border-left-color: rgba(124, 58, 237, 0.3);
-  color: #d4d4e0;
+  background: rgba(124,58,237,0.06);
+  border-left-color: rgba(124,58,237,0.3);
 }
 
-.scrollbar-thin {
-  scrollbar-width: thin;
-  scrollbar-color: #252535 transparent;
+[data-theme="light"] .sidebar-item:hover {
+  background: rgba(124,58,237,0.06);
 }
 
-.scrollbar-thin::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
-}
+/* Scrollbar */
+.scrollbar-thin { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+.scrollbar-thin::-webkit-scrollbar { width: 4px; height: 4px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: var(--border); border-radius: 999px; }
+.scrollbar-thin::-webkit-scrollbar-thumb:hover { background: var(--border-soft); }
 
-.scrollbar-thin::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.scrollbar-thin::-webkit-scrollbar-thumb {
-  background: #252535;
-  border-radius: 999px;
-}
-
-.scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: #35354a;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes typingDot {
-  0%,
-  80%,
-  100% {
-    opacity: 0.2;
-    transform: scale(0.8);
-  }
-  40% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes cardAppear {
-  from {
-    opacity: 0;
-    transform: scale(0.94) translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-@keyframes shimmer {
-  from { background-position: -200% center; }
-  to { background-position: 200% center; }
-}
-
-.animate-fade-in {
-  animation: fadeIn 0.22s ease forwards;
-}
-
-.animate-card-appear {
-  animation: cardAppear 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.typing-dot {
-  display: inline-block;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #7c3aed;
-  animation: typingDot 1.2s infinite ease-in-out;
-}
-
-.typing-dot:nth-child(2) {
-  animation-delay: 0.18s;
-}
-
-.typing-dot:nth-child(3) {
-  animation-delay: 0.36s;
-}
-
-.drag-handle {
-  cursor: grab;
-}
-
-.drag-handle:active {
-  cursor: grabbing;
-}
-
-/* Focus ring utility */
+/* Focus */
 .focus-ring:focus-visible {
-  outline: 2px solid rgba(124, 58, 237, 0.6);
+  outline: 2px solid rgba(124,58,237,0.6);
   outline-offset: 2px;
 }
+
+/* Drag */
+.drag-handle { cursor: grab; }
+.drag-handle:active { cursor: grabbing; }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   HARDCODED HEX OVERRIDES
+   These override the Tailwind arbitrary-value classes that components use.
+   Covers every hardcoded bg/border color found in the codebase.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ─── DIM overrides ──────────────────────────────────────────────────────────── */
+[data-theme="dim"] .bg-\[\#0a0a0f\],
+[data-theme="dim"] .bg-\[\#0a0a0a\],
+[data-theme="dim"] .bg-\[\#0d0d12\],
+[data-theme="dim"] .bg-\[\#111\],
+[data-theme="dim"] .bg-\[\#111118\] { background-color: var(--bg-sidebar) !important; }
+
+[data-theme="dim"] .bg-\[\#1a1a28\],
+[data-theme="dim"] .bg-\[\#1a1a2e\],
+[data-theme="dim"] .bg-\[\#17172a\],
+[data-theme="dim"] .bg-\[\#1e1e2e\],
+[data-theme="dim"] .bg-\[\#13131c\],
+[data-theme="dim"] .bg-\[\#141420\],
+[data-theme="dim"] .bg-\[\#141414\] { background-color: var(--bg-card) !important; }
+
+[data-theme="dim"] .border-\[\#26263a\],
+[data-theme="dim"] .border-\[\#2a2a3a\],
+[data-theme="dim"] .border-\[\#2a2a3e\],
+[data-theme="dim"] .border-\[\#1e1e2e\],
+[data-theme="dim"] .border-\[\#1a1a24\],
+[data-theme="dim"] .border-\[\#16162a\],
+[data-theme="dim"] .border-\[\#242438\],
+[data-theme="dim"] .border-\[\#2a2a2a\],
+[data-theme="dim"] .border-\[\#222\],
+[data-theme="dim"] .border-\[\#1e1e1e\],
+[data-theme="dim"] .border-\[\#1e1e30\],
+[data-theme="dim"] .border-\[\#1a1a1a\] { border-color: var(--border) !important; }
+
+/* ─── LIGHT overrides ────────────────────────────────────────────────────────── */
+[data-theme="light"] .bg-\[\#0a0a0f\],
+[data-theme="light"] .bg-\[\#0a0a0a\],
+[data-theme="light"] .bg-\[\#0d0d12\],
+[data-theme="light"] .bg-\[\#111\],
+[data-theme="light"] .bg-\[\#111118\] { background-color: var(--bg-sidebar) !important; }
+
+[data-theme="light"] .bg-\[\#1a1a28\],
+[data-theme="light"] .bg-\[\#1a1a2e\],
+[data-theme="light"] .bg-\[\#17172a\],
+[data-theme="light"] .bg-\[\#1e1e2e\],
+[data-theme="light"] .bg-\[\#13131c\],
+[data-theme="light"] .bg-\[\#141420\],
+[data-theme="light"] .bg-\[\#141414\],
+[data-theme="light"] .bg-\[\#16162a\],
+[data-theme="light"] .bg-\[\#0f0f0f\],
+[data-theme="light"] .bg-\[\#1a1a1a\] { background-color: var(--bg-card) !important; }
+
+[data-theme="light"] .border-\[\#26263a\],
+[data-theme="light"] .border-\[\#2a2a3a\],
+[data-theme="light"] .border-\[\#2a2a3e\],
+[data-theme="light"] .border-\[\#1e1e2e\],
+[data-theme="light"] .border-\[\#1a1a24\],
+[data-theme="light"] .border-\[\#16162a\],
+[data-theme="light"] .border-\[\#242438\],
+[data-theme="light"] .border-\[\#2a2a2a\],
+[data-theme="light"] .border-\[\#222\],
+[data-theme="light"] .border-\[\#1e1e1e\],
+[data-theme="light"] .border-\[\#1e1e30\],
+[data-theme="light"] .border-\[\#1a1a1a\] { border-color: var(--border) !important; }
+
+/* ─── Text on light theme: invert near-white zinc values ─────────────────────── */
+[data-theme="light"] .text-zinc-100 { color: var(--text) !important; }
+[data-theme="light"] .text-zinc-200 { color: #2a2a42 !important; }
+[data-theme="light"] .text-zinc-300 { color: #3c3c58 !important; }
+[data-theme="light"] .text-zinc-400 { color: var(--text-muted) !important; }
+[data-theme="light"] .text-zinc-500 { color: var(--text-muted) !important; }
+[data-theme="light"] .text-zinc-600 { color: #707088 !important; }
+[data-theme="light"] .text-zinc-700 { color: #888898 !important; }
+[data-theme="light"] .text-zinc-800 { color: #9898a8 !important; }
+
+/* ─── Text on dim theme ───────────────────────────────────────────────────────── */
+[data-theme="dim"] .text-zinc-100 { color: #d4d4d4 !important; }
+[data-theme="dim"] .text-zinc-400 { color: #a0a0a0 !important; }
+[data-theme="dim"] .text-zinc-500 { color: #8a8a8a !important; }
+[data-theme="dim"] .text-zinc-600 { color: #767676 !important; }
+[data-theme="dim"] .text-zinc-700 { color: #686868 !important; }
+[data-theme="dim"] .text-zinc-800 { color: #5a5a5a !important; }
+
+/* ─── Text on dark theme ──────────────────────────────────────────────────────── */
+[data-theme="dark"] .text-zinc-100 { color: #ececec !important; }
+[data-theme="dark"] .text-zinc-400 { color: #b4b4b4 !important; }
+[data-theme="dark"] .text-zinc-500 { color: #9a9a9a !important; }
+[data-theme="dark"] .text-zinc-600 { color: #888888 !important; }
+[data-theme="dark"] .text-zinc-700 { color: #767676 !important; }
+[data-theme="dark"] .text-zinc-800 { color: #646464 !important; }
+
+/* ── White/hover overlays on light theme ────────────────────────────────────── */
+[data-theme="light"] .hover\:bg-white\/5:hover,
+[data-theme="light"] .hover\:bg-white\/4:hover,
+[data-theme="light"] .hover\:bg-white\/10:hover { background-color: rgba(124,58,237,0.06) !important; }
+
+[data-theme="light"] .bg-white\/5,
+[data-theme="light"] .bg-white\/4 { background-color: rgba(0,0,0,0.04) !important; }
+
+/* ── Typing dot stays accent color ────────────────────────────────────────────── */
+.typing-dot {
+  display: inline-block;
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: typingDot 1.2s infinite ease-in-out;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.18s; }
+.typing-dot:nth-child(3) { animation-delay: 0.36s; }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   ANIMATIONS
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes typingDot {
+  0%,80%,100% { opacity: 0.2; transform: scale(0.8); }
+  40%         { opacity: 1;   transform: scale(1); }
+}
+@keyframes cardAppear {
+  from { opacity: 0; transform: scale(0.94) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes shimmer {
+  from { background-position: -200% center; }
+  to   { background-position:  200% center; }
+}
+
+.animate-fade-in    { animation: fadeIn      0.22s ease                            forwards; }
+.animate-card-appear{ animation: cardAppear  0.28s cubic-bezier(0.16,1,0.3,1)      forwards; }

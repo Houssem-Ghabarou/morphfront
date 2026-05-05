@@ -429,16 +429,17 @@ export function ChatPanel({
 
   return (
     <div
-      className="shrink-0 border-t border-[#1a1a24] flex flex-col"
+      className="shrink-0 flex flex-col"
       style={{
         height: panelHeight,
-        background: 'linear-gradient(to top, #141420 0%, rgba(20,20,32,0.98) 70%, rgba(20,20,32,0.88) 100%)',
+        background: 'var(--bg-canvas)',
+        borderTop: '1px solid var(--border-muted)',
         backdropFilter: 'blur(16px)',
         transition: 'height 0.2s cubic-bezier(0.16,1,0.3,1)',
       }}
     >
       {/* Chat header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-[#16162a]/60 shrink-0">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--border-muted)] shrink-0">
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5">
             <MorphMark size="sm" />

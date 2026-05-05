@@ -167,7 +167,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#141420]">
+    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg-canvas)' }}>
       <Sidebar
         sessions={session.sessions}
         currentSessionId={session.currentSessionId}
