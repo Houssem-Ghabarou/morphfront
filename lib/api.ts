@@ -221,7 +221,7 @@ export const api = {
   linkSession(payload: {
     type: string; host: string; port: number; database: string;
     username: string; password: string; ssl?: boolean; name: string;
-    sessionId: number; importedTables: string[];
+    sessionId: number; importedTables: string[]; connectionString?: string;
   }): Promise<{ connection: SessionConnection }> {
     return request('/api/connections/link-session', {
       method: 'POST',
@@ -261,19 +261,19 @@ export const api = {
   // ─── Database connections ────────────────────────────────────────────────────
 
   testConnection(config: {
-    type: string; host: string; port: number; database: string; username: string; password: string; ssl?: boolean;
+    type: string; host: string; port: number; database: string; username: string; password: string; ssl?: boolean; connectionString?: string;
   }): Promise<{ ok: boolean; error?: string }> {
     return request('/api/connections/test', { method: 'POST', body: JSON.stringify(config) });
   },
 
   discoverSchemas(config: {
-    type: string; host: string; port: number; database: string; username: string; password: string; ssl?: boolean;
+    type: string; host: string; port: number; database: string; username: string; password: string; ssl?: boolean; connectionString?: string;
   }): Promise<{ tables: Array<{ tableName: string; rowCount: number; columns: Array<{ name: string; type: string; nullable: boolean }>; sampleRows: Record<string, unknown>[] }> }> {
     return request('/api/connections/discover', { method: 'POST', body: JSON.stringify(config) });
   },
 
   importFromConnection(payload: {
-    type: string; host: string; port: number; database: string; username: string; password: string; ssl?: boolean;
+    type: string; host: string; port: number; database: string; username: string; password: string; ssl?: boolean; connectionString?: string;
     sessionId: number; tables: string[];
   }): Promise<{ results: Array<{ tableName: string; rowsImported: number; error?: string }> }> {
     return request('/api/connections/import', { method: 'POST', body: JSON.stringify(payload) });

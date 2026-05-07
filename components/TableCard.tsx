@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { api } from '@/lib/api';
 import { FormModal } from '@/components/FormModal';
 import { CellRenderer } from '@/components/CellRenderer';
@@ -21,10 +21,10 @@ interface TableCardProps {
   columnSources?: Record<string, string>;
   onPositionChange: (tableName: string, x: number, y: number) => void;
   canvasOffset: { x: number; y: number };
-  canvasScale?: number;
+  canvasScaleRef?: React.RefObject<number>;
   relations?: Relation[];
   selectedContext?: RowSelectionContext | null;
-  onRowSelect?: (row: Record<string, unknown>) => void;
+  onRowSelect?: (tableName: string, row: Record<string, unknown>) => void;
   onDrop?: (tableName: string) => void;
 }
 
@@ -54,7 +54,7 @@ function ModuleIcon({ name }: { name: string }) {
   return <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg>;
 }
 
-export function TableCard({
+function TableCardInner({
   tableName,
   x,
   y,
@@ -64,7 +64,7 @@ export function TableCard({
   columnSources,
   onPositionChange,
   canvasOffset,
-  canvasScale = 1,
+  canvasScaleRef,
   selectedContext = null,
   onRowSelect,
   onDrop,
@@ -169,7 +169,7 @@ export function TableCard({
     if (!isDragging) return;
     const onMove = (e: MouseEvent) => {
       if (!dragRef.current) return;
-      const s = canvasScale > 0 ? canvasScale : 1;
+      const s = (canvasScaleRef?.current ?? 1) > 0 ? (canvasScaleRef?.current ?? 1) : 1;
       setPosition({ x: dragRef.current.startCardX + (e.clientX - dragRef.current.startMouseX) / s, y: dragRef.current.startCardY + (e.clientY - dragRef.current.startMouseY) / s });
     };
     const onUp = async () => {
@@ -182,7 +182,7 @@ export function TableCard({
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
     return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
-  }, [isDragging, tableName, sessionId, onPositionChange, canvasScale]);
+  }, [isDragging, tableName, sessionId, onPositionChange, canvasScaleRef]);
 
   // ── Delete with cascade ──────────────────────────────────────────────────────
 
@@ -405,7 +405,7 @@ export function TableCard({
                           key={rowId != null ? String(rowId) : i}
                           onMouseEnter={() => setHoveredRowId(rowId)}
                           onMouseLeave={() => setHoveredRowId(null)}
-                          onClick={(e) => { e.stopPropagation(); onRowSelect?.(row); }}
+                          onClick={(e) => { e.stopPropagation(); onRowSelect?.(tableName, row); }}
                           className={`border-b border-[#1a1a1a] transition-colors ${isDeleting ? 'opacity-40' : ''} ${selectedHere ? 'bg-violet-500/15 hover:bg-violet-500/20' : 'hover:bg-white/[0.025]'}`}
                         >
                           {dataColumns.map((col) => {
@@ -502,3 +502,5 @@ export function TableCard({
     </>
   );
 }
+
+export const TableCard = memo(TableCardInner);

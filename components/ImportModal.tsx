@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { api, ImportAnalysis, ColumnSuggestion, ColumnMapping } from '@/lib/api';
-import { ModalTheme, ThemeVars, THEMES, ThemeToggle, inputStyle, selectStyle } from '@/components/ModalTheme';
+import { ThemeVars, THEMES, inputStyle, selectStyle } from '@/components/ModalTheme';
+import { useTheme } from '@/components/ThemeProvider';
 
 const PG_TYPES = ['TEXT', 'INTEGER', 'NUMERIC', 'BOOLEAN', 'DATE', 'TIMESTAMP'];
 
@@ -48,7 +49,7 @@ function FileStatusBadge({ status }: { status: FileStatus }) {
 }
 
 export function ImportModal({ sessionId, hasExistingTables, onClose, onSuccess }: ImportModalProps) {
-  const [theme, setTheme] = useState<ModalTheme>('dark');
+  const { theme } = useTheme();
   const t: ThemeVars = THEMES[theme];
 
   const [step, setStep] = useState<'upload' | 'review'>('upload');
@@ -164,7 +165,6 @@ export function ImportModal({ sessionId, hasExistingTables, onClose, onSuccess }
             </span>
           </div>
           <div className="flex items-center gap-2">
-            <ThemeToggle theme={theme} onChange={setTheme} t={t} />
             <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors" style={{ color: t.text3 }}
               onMouseEnter={(e) => (e.currentTarget.style.background = t.bg2)}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>

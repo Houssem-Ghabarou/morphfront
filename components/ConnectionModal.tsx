@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '@/lib/api';
-import { ModalTheme, ThemeVars, THEMES, ThemeToggle, inputStyle, selectStyle } from '@/components/ModalTheme';
+import { ThemeVars, THEMES, inputStyle, selectStyle } from '@/components/ModalTheme';
+import { useTheme } from '@/components/ThemeProvider';
 
 type DbType = 'postgresql' | 'mysql' | 'mongodb';
 type Step   = 'config' | 'discover' | 'import';
@@ -55,17 +56,19 @@ function DbTypeButton({ type, selected, onClick, t }: { type: DbType; selected: 
 }
 
 export function ConnectionModal({ sessionId, onClose, onSuccess, onConnectionLinked }: ConnectionModalProps) {
-  const [theme, setTheme] = useState<ModalTheme>('dark');
+  const { theme } = useTheme();
   const t: ThemeVars = THEMES[theme];
 
-  const [step, setStep]         = useState<Step>('config');
-  const [dbType, setDbType]     = useState<DbType>('postgresql');
-  const [host, setHost]         = useState('localhost');
-  const [port, setPort]         = useState(DEFAULT_PORTS.postgresql);
-  const [database, setDatabase] = useState('');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [ssl, setSsl]           = useState(false);
+  const [step, setStep]               = useState<Step>('config');
+  const [dbType, setDbType]           = useState<DbType>('postgresql');
+  const [host, setHost]               = useState('localhost');
+  const [port, setPort]               = useState(DEFAULT_PORTS.postgresql);
+  const [database, setDatabase]       = useState('');
+  const [username, setUsername]       = useState('');
+  const [password, setPassword]       = useState('');
+  const [ssl, setSsl]                 = useState(false);
+  const [useSrv, setUseSrv]           = useState(false);
+  const [connectionString, setConnectionString] = useState('');
 
   const [isTesting, setIsTesting]         = useState(false);
   const [testResult, setTestResult]       = useState<{ ok: boolean; message: string } | null>(null);
@@ -84,8 +87,10 @@ export function ConnectionModal({ sessionId, onClose, onSuccess, onConnectionLin
     return () => window.removeEventListener('keydown', h);
   }, [onClose]);
 
-  const handleTypeChange = (tp: DbType) => { setDbType(tp); setPort(DEFAULT_PORTS[tp]); setTestResult(null); setError(null); };
-  const connBody = () => ({ type: dbType, host, port, database, username, password, ssl });
+  const handleTypeChange = (tp: DbType) => { setDbType(tp); setPort(DEFAULT_PORTS[tp]); setTestResult(null); setError(null); if (tp !== 'mongodb') setUseSrv(false); };
+  const connBody = () => useSrv
+    ? { type: dbType, host: 'atlas', port: 0, database, username: '', password: '', ssl: false, connectionString }
+    : { type: dbType, host, port, database, username, password, ssl };
 
   const handleTest = async () => {
     setIsTesting(true); setTestResult(null); setError(null);
@@ -141,7 +146,7 @@ export function ConnectionModal({ sessionId, onClose, onSuccess, onConnectionLin
     finally { setIsImporting(false); }
   };
 
-  const canConnect = host && database && (dbType === 'mongodb' || username);
+  const canConnect = useSrv ? (connectionString.startsWith('mongodb') && database) : (host && database && (dbType === 'mongodb' || username));
 
   if (!portalEl) return null;
 
@@ -164,7 +169,6 @@ export function ConnectionModal({ sessionId, onClose, onSuccess, onConnectionLin
             <span className="text-sm font-semibold" style={{ color: t.text1 }}>Connect Database</span>
           </div>
           <div className="flex items-center gap-2">
-            <ThemeToggle theme={theme} onChange={setTheme} t={t} />
             <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors" style={{ color: t.text3 }}
               onMouseEnter={(e) => (e.currentTarget.style.background = t.bg2)}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
@@ -205,47 +209,82 @@ export function ConnectionModal({ sessionId, onClose, onSuccess, onConnectionLin
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-2">
-                  <label className="text-xs uppercase tracking-wide block mb-1" style={{ color: t.text3 }}>Host</label>
-                  <input value={host} onChange={(e) => setHost(e.target.value)} placeholder="localhost" className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={iStyle} />
+              {/* Atlas / SRV toggle — MongoDB only */}
+              {dbType === 'mongodb' && (
+                <div className="flex items-center gap-2">
+                  <button onClick={() => { setUseSrv(!useSrv); setTestResult(null); setError(null); }} className="relative rounded-full transition-colors"
+                    style={{ width: 32, height: 18, background: useSrv ? '#7c3aed' : t.border2, border: `1px solid ${useSrv ? '#7c3aed' : t.border2}` }}>
+                    <span className="absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all" style={{ left: useSrv ? 16 : 2 }} />
+                  </button>
+                  <span className="text-xs" style={{ color: t.text2 }}>Use Atlas / SRV connection string</span>
                 </div>
-                <div>
-                  <label className="text-xs uppercase tracking-wide block mb-1" style={{ color: t.text3 }}>Port</label>
-                  <input type="number" value={port} onChange={(e) => setPort(Number(e.target.value))} className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={iStyle} />
-                </div>
-              </div>
+              )}
 
-              <div>
-                <label className="text-xs uppercase tracking-wide block mb-1" style={{ color: t.text3 }}>
-                  {dbType === 'mongodb' ? 'Database namespace' : 'Database name'}
-                </label>
-                <input value={database} onChange={(e) => setDatabase(e.target.value)} placeholder={dbType === 'mongodb' ? 'my_db' : 'my_database'} className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={iStyle} />
-              </div>
+              {useSrv ? (
+                <>
+                  <div>
+                    <label className="text-xs uppercase tracking-wide block mb-1" style={{ color: t.text3 }}>Connection string</label>
+                    <input
+                      value={connectionString}
+                      onChange={(e) => setConnectionString(e.target.value)}
+                      placeholder="mongodb+srv://user:password@cluster0.xxxxx.mongodb.net/mydb"
+                      className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none font-mono"
+                      style={iStyle}
+                    />
+                    <p className="text-[11px] mt-1.5" style={{ color: t.text4 }}>
+                      Replace <span className="font-mono" style={{ color: t.text3 }}>{'<db_username>'}</span> and <span className="font-mono" style={{ color: t.text3 }}>{'<db_password>'}</span> with your actual credentials.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-xs uppercase tracking-wide block mb-1" style={{ color: t.text3 }}>Database name</label>
+                    <input value={database} onChange={(e) => setDatabase(e.target.value)} placeholder="my_db" className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={iStyle} />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="col-span-2">
+                      <label className="text-xs uppercase tracking-wide block mb-1" style={{ color: t.text3 }}>Host</label>
+                      <input value={host} onChange={(e) => setHost(e.target.value)} placeholder="localhost" className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={iStyle} />
+                    </div>
+                    <div>
+                      <label className="text-xs uppercase tracking-wide block mb-1" style={{ color: t.text3 }}>Port</label>
+                      <input type="number" value={port} onChange={(e) => setPort(Number(e.target.value))} className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={iStyle} />
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs uppercase tracking-wide block mb-1" style={{ color: t.text3 }}>
-                    Username{dbType === 'mongodb' && <span className="normal-case ml-1" style={{ color: t.text4 }}>(optional)</span>}
-                  </label>
-                  <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder={dbType === 'mongodb' ? 'leave blank if open' : 'postgres'} autoComplete="username" className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={iStyle} />
-                </div>
-                <div>
-                  <label className="text-xs uppercase tracking-wide block mb-1" style={{ color: t.text3 }}>
-                    Password{dbType === 'mongodb' && !username && <span className="normal-case ml-1" style={{ color: t.text4 }}>(optional)</span>}
-                  </label>
-                  <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" autoComplete="current-password" className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={iStyle} />
-                </div>
-              </div>
+                  <div>
+                    <label className="text-xs uppercase tracking-wide block mb-1" style={{ color: t.text3 }}>
+                      {dbType === 'mongodb' ? 'Database namespace' : 'Database name'}
+                    </label>
+                    <input value={database} onChange={(e) => setDatabase(e.target.value)} placeholder={dbType === 'mongodb' ? 'my_db' : 'my_database'} className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={iStyle} />
+                  </div>
 
-              {/* SSL */}
-              <div className="flex items-center gap-2">
-                <button onClick={() => setSsl(!ssl)} className="relative rounded-full transition-colors"
-                  style={{ width: 32, height: 18, background: ssl ? '#7c3aed' : t.border2, border: `1px solid ${ssl ? '#7c3aed' : t.border2}` }}>
-                  <span className="absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all" style={{ left: ssl ? 16 : 2 }} />
-                </button>
-                <span className="text-xs" style={{ color: t.text2 }}>Use SSL/TLS</span>
-              </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs uppercase tracking-wide block mb-1" style={{ color: t.text3 }}>
+                        Username{dbType === 'mongodb' && <span className="normal-case ml-1" style={{ color: t.text4 }}>(optional)</span>}
+                      </label>
+                      <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder={dbType === 'mongodb' ? 'leave blank if open' : 'postgres'} autoComplete="username" className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={iStyle} />
+                    </div>
+                    <div>
+                      <label className="text-xs uppercase tracking-wide block mb-1" style={{ color: t.text3 }}>
+                        Password{dbType === 'mongodb' && !username && <span className="normal-case ml-1" style={{ color: t.text4 }}>(optional)</span>}
+                      </label>
+                      <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" autoComplete="current-password" className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none" style={iStyle} />
+                    </div>
+                  </div>
+
+                  {/* SSL */}
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => setSsl(!ssl)} className="relative rounded-full transition-colors"
+                      style={{ width: 32, height: 18, background: ssl ? '#7c3aed' : t.border2, border: `1px solid ${ssl ? '#7c3aed' : t.border2}` }}>
+                      <span className="absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all" style={{ left: ssl ? 16 : 2 }} />
+                    </button>
+                    <span className="text-xs" style={{ color: t.text2 }}>Use SSL/TLS</span>
+                  </div>
+                </>
+              )}
 
               {testResult && (
                 <div className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs"

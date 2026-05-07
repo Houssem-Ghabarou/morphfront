@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { MorphCanvasBrand } from '@/components/MorphLogo';
 import { TableCard } from '@/components/TableCard';
 import { StatCard } from '@/components/StatCard';
@@ -44,8 +44,19 @@ function describe(rel: Relation) {
 }
 
 export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualCards, onRemoveVisualCard, onVisualCardPositionChange, relations = [], onAutoLayout, onOpenDashboard, onImportCSV, onConnectDB, onOpenDbSettings, dbConnectionName, onAnalyzeClick, isAnalyzing, onDropTable }: CanvasProps) {
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  // offset is ref-only — pan writes directly to DOM, bypassing React re-renders
+  const offsetRef = useRef({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
+  const scaleRef = useRef(1);
+  const transformLayerRef = useRef<HTMLDivElement>(null);
+
+  const applyTransform = useCallback(() => {
+    if (!transformLayerRef.current) return;
+    const { x, y } = offsetRef.current;
+    const s = scaleRef.current;
+    transformLayerRef.current.style.transform = `translate(${x}px, ${y}px) scale(${s})`;
+  }, []);
+
   /** Click a row in any table to filter descendant tables along FK links (e.g. pick a client → meals / programs). */
   const [selectedRow, setSelectedRow] = useState<{
     tableName: string;
@@ -57,12 +68,15 @@ export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualC
   const [spaceDown, setSpaceDown] = useState(false);
   const panStart = useRef<{ mouseX: number; mouseY: number; offsetX: number; offsetY: number } | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
-  const offsetRef = useRef(offset);
-  const scaleRef = useRef(scale);
-  offsetRef.current = offset;
-  scaleRef.current = scale;
   const newTablesRef = useRef<Set<string>>(new Set());
   const prevTableNames = useRef<Set<string>>(new Set());
+
+  // Stable row-select handler — same reference forever, no per-table inline arrows
+  const handleRowSelect = useCallback((tableName: string, row: Record<string, unknown>) => {
+    setSelectedRow((prev) =>
+      prev?.tableName === tableName && prev.row.id === row.id ? null : { tableName, row }
+    );
+  }, []);
 
   useEffect(() => {
     const currentNames = new Set(tables.map((t) => t.tableName));
@@ -109,12 +123,12 @@ export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualC
       panStart.current = {
         mouseX: e.clientX,
         mouseY: e.clientY,
-        offsetX: offset.x,
-        offsetY: offset.y,
+        offsetX: offsetRef.current.x,
+        offsetY: offsetRef.current.y,
       };
       setIsPanning(true);
     },
-    [offset, spaceDown]
+    [spaceDown]
   );
 
   useEffect(() => {
@@ -122,10 +136,11 @@ export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualC
 
     const move = (e: MouseEvent) => {
       if (!panStart.current) return;
-      setOffset({
+      offsetRef.current = {
         x: panStart.current.offsetX + (e.clientX - panStart.current.mouseX),
         y: panStart.current.offsetY + (e.clientY - panStart.current.mouseY),
-      });
+      };
+      applyTransform();
     };
 
     const up = () => {
@@ -163,11 +178,10 @@ export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualC
       const cx = (mx - prevOffset.x) / prevScale;
       const cy = (my - prevOffset.y) / prevScale;
 
-      setScale(newScale);
-      setOffset({
-        x: mx - newScale * cx,
-        y: my - newScale * cy,
-      });
+      offsetRef.current = { x: mx - newScale * cx, y: my - newScale * cy };
+      scaleRef.current = newScale;
+      applyTransform();
+      setScale(newScale); // only for zoom % display
     };
 
     el.addEventListener('wheel', onWheel, { passive: false });
@@ -218,10 +232,11 @@ export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualC
       ) : null}
 
       <div
+        ref={transformLayerRef}
         className="absolute inset-0"
         style={{
           pointerEvents: 'none',
-          transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+          transform: 'translate(0px, 0px) scale(1)',
           transformOrigin: '0 0',
         }}
       >
@@ -292,20 +307,11 @@ export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualC
                 isNew={newTablesRef.current.has(table.tableName)}
                 onPositionChange={onPositionChange}
                 canvasOffset={ZERO_OFFSET}
-                canvasScale={scale}
+                canvasScaleRef={scaleRef}
                 relations={relations}
                 columnSources={table.columnSources}
                 selectedContext={selectedRow}
-                onRowSelect={(row) => {
-                  if (
-                    selectedRow?.tableName === table.tableName &&
-                    selectedRow.row.id === row.id
-                  ) {
-                    setSelectedRow(null);
-                  } else {
-                    setSelectedRow({ tableName: table.tableName, row });
-                  }
-                }}
+                onRowSelect={handleRowSelect}
                 onDrop={onDropTable}
               />
             </div>
