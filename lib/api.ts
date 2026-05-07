@@ -53,6 +53,19 @@ export interface AuthUser {
   email: string;
 }
 
+export interface SessionConnection {
+  id: number;
+  connection_id: number;
+  imported_tables: string[];
+  auto_sync_minutes: number | null;
+  last_synced_at: string | null;
+  name: string;
+  type: string;
+  host: string;
+  port: number;
+  database_name: string;
+}
+
 export const api = {
   register(email: string, password: string): Promise<{ user: AuthUser }> {
     return request('/api/auth/register', {
@@ -125,8 +138,13 @@ export const api = {
     });
   },
 
-  getTableData(tableName: string): Promise<{ rows: DataRow[] }> {
-    return request(`/api/data/${tableName}`);
+  getTableData(tableName: string, opts?: { page?: number; limit?: number; search?: string }): Promise<{ rows: DataRow[]; total?: number; pages?: number; page?: number }> {
+    const params = new URLSearchParams();
+    if (opts?.page)   params.set('page',   String(opts.page));
+    if (opts?.limit)  params.set('limit',  String(opts.limit));
+    if (opts?.search) params.set('search', opts.search);
+    const qs = params.toString();
+    return request(`/api/data/${tableName}${qs ? `?${qs}` : ''}`);
   },
 
   insertRow(tableName: string, data: Record<string, unknown>): Promise<void> {
@@ -196,6 +214,47 @@ export const api = {
     return request('/api/import/confirm', {
       method: 'POST',
       body: JSON.stringify(payload),
+    });
+  },
+
+  // Save connection + link to session in one shot, no re-test
+  linkSession(payload: {
+    type: string; host: string; port: number; database: string;
+    username: string; password: string; ssl?: boolean; name: string;
+    sessionId: number; importedTables: string[];
+  }): Promise<{ connection: SessionConnection }> {
+    return request('/api/connections/link-session', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // ─── Session ↔ Connection linking ───────────────────────────────────────────
+
+  getSessionConnection(sessionId: number): Promise<{ connection: SessionConnection | null }> {
+    return request(`/api/sessions/${sessionId}/connection`);
+  },
+
+  saveSessionConnection(sessionId: number, connectionId: number, tables: string[]): Promise<{ ok: boolean }> {
+    return request(`/api/sessions/${sessionId}/connection`, {
+      method: 'POST',
+      body: JSON.stringify({ connectionId, tables }),
+    });
+  },
+
+  setAutoSync(sessionId: number, autoSyncMinutes: number | null): Promise<{ ok: boolean }> {
+    return request(`/api/sessions/${sessionId}/connection`, {
+      method: 'PATCH',
+      body: JSON.stringify({ autoSyncMinutes }),
+    });
+  },
+
+  syncConnection(connectionId: number, sessionId: number, tables: string[]): Promise<{
+    results: Array<{ tableName: string; rowsImported: number; error?: string }>;
+  }> {
+    return request(`/api/connections/${connectionId}/sync`, {
+      method: 'POST',
+      body: JSON.stringify({ sessionId, tables }),
     });
   },
 

@@ -71,6 +71,9 @@ export function TableCard({
 }: TableCardProps) {
   const [columns, setColumns] = useState<SchemaColumn[]>([]);
   const [rows, setRows] = useState<DataRow[]>([]);
+  const [totalRows, setTotalRows] = useState(0);
+  const [cardPage, setCardPage] = useState(1);
+  const [cardPages, setCardPages] = useState(1);
   const [displayRows, setDisplayRows] = useState<DataRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -84,6 +87,7 @@ export function TableCard({
   const [hoveredRowId, setHoveredRowId] = useState<unknown>(null);
   const [sortState, setSortState] = useState<{ col: string; dir: 'asc' | 'desc' } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [dropConfirm, setDropConfirm] = useState(false);
   const [isDropping, setIsDropping] = useState(false);
@@ -100,25 +104,34 @@ export function TableCard({
     if (isNew) { const t = setTimeout(() => setAppeared(true), 50); return () => clearTimeout(t); }
   }, [isNew]);
 
-  const fetchData = useCallback(async () => {
+  const CARD_PAGE_SIZE = 50;
+
+  // Debounce search 350ms
+  useEffect(() => {
+    const t = setTimeout(() => { setDebouncedSearch(searchQuery); setCardPage(1); }, 350);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  const fetchData = useCallback(async (pg = cardPage, search = debouncedSearch) => {
     try {
-      const [schemaData, rowsData] = await Promise.all([api.getSchema(tableName), api.getTableData(tableName)]);
+      const [schemaData, rowsData] = await Promise.all([
+        api.getSchema(tableName),
+        api.getTableData(tableName, { limit: CARD_PAGE_SIZE, page: pg, search: search || undefined }),
+      ]);
       setColumns(schemaData.columns);
       setRows(rowsData.rows);
+      setTotalRows(rowsData.total ?? rowsData.rows.length);
+      setCardPages(rowsData.pages ?? 1);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes('404')) {
-        // Table is gone from DB but still in session — silently remove from view
-        onDrop?.(tableName);
-        return;
-      }
+      if (msg.includes('404')) { onDrop?.(tableName); return; }
       console.error(`Failed to fetch data for ${tableName}`, err);
     } finally {
       setIsLoading(false);
     }
-  }, [tableName, onDrop]);
+  }, [tableName, onDrop, cardPage, debouncedSearch]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { fetchData(cardPage, debouncedSearch); }, [tableName, cardPage, debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     let cancelled = false;
@@ -137,11 +150,11 @@ export function TableCard({
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<{ tableName: string }>).detail;
-      if (detail.tableName === tableName) fetchData();
+      if (detail.tableName === tableName) fetchData(cardPage, debouncedSearch);
     };
     window.addEventListener('morph:refresh', handler);
     return () => window.removeEventListener('morph:refresh', handler);
-  }, [tableName, fetchData]);
+  }, [tableName, fetchData, cardPage, debouncedSearch]);
 
   // ── Drag ────────────────────────────────────────────────────────────────────
 
@@ -238,18 +251,15 @@ export function TableCard({
   const singularLabel = toSingular(moduleLabel);
   const isFiltered = selectedContext && tableName !== selectedContext.tableName && displayRows.length !== rows.length;
 
-  const searchedRows = searchQuery.trim()
-    ? displayRows.filter((row) => dataColumns.some((col) => { const v = row[col.column_name]; return v != null && String(v).toLowerCase().includes(searchQuery.toLowerCase()); }))
-    : displayRows;
-
+  // Sort is client-side on the current page; search is server-side
   const sortedRows = sortState
-    ? [...searchedRows].sort((a, b) => {
+    ? [...displayRows].sort((a, b) => {
         const aStr = a[sortState.col] == null ? '' : String(a[sortState.col]);
         const bStr = b[sortState.col] == null ? '' : String(b[sortState.col]);
         const n = aStr.localeCompare(bStr, undefined, { numeric: true });
         return sortState.dir === 'asc' ? n : -n;
       })
-    : searchedRows;
+    : displayRows;
 
   const cycleSort = (col: string) => setSortState((prev) => {
     if (!prev || prev.col !== col) return { col, dir: 'asc' };
@@ -302,7 +312,8 @@ export function TableCard({
             </div>
             <span className="flex-1 text-[12px] font-semibold text-zinc-100 truncate">{moduleLabel}</span>
             <span className="text-[10px] text-zinc-500 shrink-0">
-              {isFiltered ? `${sortedRows.length} / ${rows.length}` : sortedRows.length} {rows.length === 1 ? 'record' : 'records'}
+              {isFiltered ? `${sortedRows.length} / ${totalRows.toLocaleString()}` : totalRows.toLocaleString()}{' '}
+              {totalRows === 1 ? 'record' : 'records'}
             </span>
             <button onClick={(e) => { e.stopPropagation(); setShowSearch((v) => !v); if (showSearch) setSearchQuery(''); }} title="Search"
               className={`shrink-0 w-5 h-5 flex items-center justify-center rounded transition-colors ${showSearch ? 'text-violet-400 bg-violet-500/15' : 'text-zinc-600 hover:text-zinc-400 hover:bg-white/5'}`}>
@@ -438,13 +449,39 @@ export function TableCard({
             </div>
           )}
 
-          {/* Footer */}
-          <div className="px-3 py-2 border-t border-[#1e1e1e]">
-            <button type="button" onClick={() => openModal()}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] text-zinc-400 hover:text-violet-300 hover:bg-violet-500/10 transition-colors w-full">
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
-              Add {singularLabel}
-            </button>
+          {/* Pagination + Add footer */}
+          <div className="border-t border-[#1e1e1e]">
+            {cardPages > 1 && (
+              <div className="flex items-center justify-between px-3 py-1.5 border-b border-[#1e1e1e]">
+                <span className="text-[10px] text-zinc-600">
+                  {((cardPage - 1) * CARD_PAGE_SIZE + 1)}–{Math.min(cardPage * CARD_PAGE_SIZE, totalRows)} of {totalRows.toLocaleString()}
+                </span>
+                <div className="flex items-center gap-0.5">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setCardPage((p) => Math.max(1, p - 1)); }}
+                    disabled={cardPage === 1}
+                    className="w-5 h-5 flex items-center justify-center rounded text-zinc-500 hover:text-zinc-200 hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                  </button>
+                  <span className="text-[10px] text-zinc-500 px-1 tabular-nums">{cardPage}/{cardPages}</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setCardPage((p) => Math.min(cardPages, p + 1)); }}
+                    disabled={cardPage === cardPages}
+                    className="w-5 h-5 flex items-center justify-center rounded text-zinc-500 hover:text-zinc-200 hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                  </button>
+                </div>
+              </div>
+            )}
+            <div className="px-3 py-2">
+              <button type="button" onClick={() => openModal()}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] text-zinc-400 hover:text-violet-300 hover:bg-violet-500/10 transition-colors w-full">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                Add {singularLabel}
+              </button>
+            </div>
           </div>
         </div>
       </div>

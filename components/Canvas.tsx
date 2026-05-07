@@ -21,6 +21,8 @@ interface CanvasProps {
   onOpenDashboard?: () => void;
   onImportCSV?: () => void;
   onConnectDB?: () => void;
+  onOpenDbSettings?: () => void;
+  dbConnectionName?: string | null;
   onAnalyzeClick?: () => void;
   isAnalyzing?: boolean;
   onDropTable?: (tableName: string) => void;
@@ -41,7 +43,7 @@ function describe(rel: Relation) {
   };
 }
 
-export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualCards, onRemoveVisualCard, onVisualCardPositionChange, relations = [], onAutoLayout, onOpenDashboard, onImportCSV, onConnectDB, onAnalyzeClick, isAnalyzing, onDropTable }: CanvasProps) {
+export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualCards, onRemoveVisualCard, onVisualCardPositionChange, relations = [], onAutoLayout, onOpenDashboard, onImportCSV, onConnectDB, onOpenDbSettings, dbConnectionName, onAnalyzeClick, isAnalyzing, onDropTable }: CanvasProps) {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
   /** Click a row in any table to filter descendant tables along FK links (e.g. pick a client → meals / programs). */
@@ -380,20 +382,39 @@ export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualC
 
       {/* Toolbar — top-right */}
       <div className="absolute top-4 right-4 pointer-events-auto select-none flex items-center gap-2">
-        {/* Connect DB button */}
-        {sessionId && onConnectDB && (
-          <button
-            onClick={onConnectDB}
-            title="Connect Database"
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 bg-[#111] border-[#2a2a2a] text-zinc-500 hover:border-violet-500/30 hover:text-violet-300 hover:bg-violet-600/15"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <ellipse cx="12" cy="5" rx="9" ry="3" />
-              <path d="M21 12c0 1.66-4.03 3-9 3s-9-1.34-9-3" />
-              <path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5" />
-            </svg>
-            <span>Connect DB</span>
-          </button>
+        {/* Connect DB / Connected DB button */}
+        {sessionId && (
+          dbConnectionName ? (
+            <button
+              onClick={onOpenDbSettings}
+              title="DB Settings"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200"
+              style={{
+                background: 'rgba(16,185,129,0.08)',
+                borderColor: 'rgba(16,185,129,0.35)',
+                color: '#10b981',
+              }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="max-w-[100px] truncate">{dbConnectionName}</span>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+              </svg>
+            </button>
+          ) : onConnectDB ? (
+            <button
+              onClick={onConnectDB}
+              title="Connect Database"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 bg-[#111] border-[#2a2a2a] text-zinc-500 hover:border-violet-500/30 hover:text-violet-300 hover:bg-violet-600/15"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <ellipse cx="12" cy="5" rx="9" ry="3" />
+                <path d="M21 12c0 1.66-4.03 3-9 3s-9-1.34-9-3" />
+                <path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5" />
+              </svg>
+              <span>Connect DB</span>
+            </button>
+          ) : null
         )}
 
         {/* Import CSV button */}

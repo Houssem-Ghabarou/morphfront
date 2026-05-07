@@ -23,9 +23,14 @@ function toSingular(label: string): string {
   return label;
 }
 
+const PAGE_SIZE = 100;
+
 export function DashboardTable({ tableName, sessionId, relations = [] }: DashboardTableProps) {
   const [columns, setColumns] = useState<SchemaColumn[]>([]);
   const [rows, setRows] = useState<DataRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingRow, setEditingRow] = useState<DataRow | null>(null);
@@ -34,14 +39,27 @@ export function DashboardTable({ tableName, sessionId, relations = [] }: Dashboa
   const [hoveredRowId, setHoveredRowId] = useState<unknown>(null);
   const [sortState, setSortState] = useState<{ col: string; dir: 'asc' | 'desc' } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedRows, setSelectedRows] = useState<Set<unknown>>(new Set());
   const cardRef = useRef<HTMLDivElement>(null);
 
-  const fetchData = useCallback(async () => {
+  // Debounce search input — fire API only after 300 ms of no typing
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  const fetchData = useCallback(async (targetPage: number, search: string) => {
+    setIsLoading(true);
     try {
-      const [schemaData, rowsData] = await Promise.all([api.getSchema(tableName), api.getTableData(tableName)]);
+      const [schemaData, rowsData] = await Promise.all([
+        api.getSchema(tableName),
+        api.getTableData(tableName, { page: targetPage, limit: PAGE_SIZE, search: search || undefined }),
+      ]);
       setColumns(schemaData.columns);
       setRows(rowsData.rows);
+      setTotal(rowsData.total ?? rowsData.rows.length);
+      setPages(rowsData.pages ?? 1);
     } catch (err) {
       console.error(`Failed to fetch data for ${tableName}`, err);
     } finally {
@@ -49,16 +67,30 @@ export function DashboardTable({ tableName, sessionId, relations = [] }: Dashboa
     }
   }, [tableName]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  // Re-fetch when page or debounced search changes
+  useEffect(() => {
+    fetchData(page, debouncedSearch);
+  }, [tableName, page, debouncedSearch, fetchData]);
+
+  // Search change resets to page 1
+  useEffect(() => {
+    setPage(1);
+    setSelectedRows(new Set());
+  }, [debouncedSearch]);
 
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<{ tableName: string }>).detail;
-      if (detail.tableName === tableName) fetchData();
+      if (detail.tableName === tableName) fetchData(page, debouncedSearch);
     };
     window.addEventListener('morph:refresh', handler);
     return () => window.removeEventListener('morph:refresh', handler);
-  }, [tableName, fetchData]);
+  }, [tableName, page, debouncedSearch, fetchData]);
+
+  const goToPage = (p: number) => {
+    setPage(Math.max(1, Math.min(p, pages)));
+    setSelectedRows(new Set());
+  };
 
   const deleteRow = async (row: DataRow) => {
     const rowId = row.id;
@@ -86,7 +118,7 @@ export function DashboardTable({ tableName, sessionId, relations = [] }: Dashboa
       }
       await api.deleteRow(tableName, rowId as string);
       setSelectedRows((prev) => { const next = new Set(prev); next.delete(rowId); return next; });
-      await fetchData();
+      await fetchData(page, debouncedSearch);
     } catch (err) {
       console.error('Failed to delete row', err);
     } finally {
@@ -126,18 +158,15 @@ export function DashboardTable({ tableName, sessionId, relations = [] }: Dashboa
   const moduleLabel = toModuleLabel(tableName.replace(/^s\d+_/, ''));
   const singularLabel = toSingular(moduleLabel);
 
-  const searchedRows = searchQuery.trim()
-    ? rows.filter((row) => dataColumns.some((col) => { const v = row[col.column_name]; return v != null && String(v).toLowerCase().includes(searchQuery.toLowerCase()); }))
-    : rows;
-
+  // Sort is client-side on the current page (server delivers the page, we sort in-memory)
   const sortedRows = sortState
-    ? [...searchedRows].sort((a, b) => {
+    ? [...rows].sort((a, b) => {
         const aStr = a[sortState.col] == null ? '' : String(a[sortState.col]);
         const bStr = b[sortState.col] == null ? '' : String(b[sortState.col]);
         const n = aStr.localeCompare(bStr, undefined, { numeric: true });
         return sortState.dir === 'asc' ? n : -n;
       })
-    : searchedRows;
+    : rows;
 
   const cycleSort = (col: string) => setSortState((prev) => {
     if (!prev || prev.col !== col) return { col, dir: 'asc' };
@@ -154,10 +183,10 @@ export function DashboardTable({ tableName, sessionId, relations = [] }: Dashboa
   };
 
   const toggleAll = () => {
-    if (selectedRows.size === sortedRows.length) {
+    if (selectedRows.size === rows.length) {
       setSelectedRows(new Set());
     } else {
-      setSelectedRows(new Set(sortedRows.map((r) => r.id)));
+      setSelectedRows(new Set(rows.map((r) => r.id)));
     }
   };
 
@@ -180,8 +209,9 @@ export function DashboardTable({ tableName, sessionId, relations = [] }: Dashboa
             <div>
               <h2 className="text-lg font-semibold text-zinc-100">{moduleLabel}</h2>
               <p className="text-xs text-zinc-600 mt-0.5">
-                {rows.length} {rows.length === 1 ? 'record' : 'records'} total
-                {searchQuery && ` · ${sortedRows.length} matching`}
+                {total.toLocaleString()} {total === 1 ? 'record' : 'records'}
+                {debouncedSearch ? ' matching' : ' total'}
+                {pages > 1 && ` · page ${page} of ${pages}`}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -200,7 +230,7 @@ export function DashboardTable({ tableName, sessionId, relations = [] }: Dashboa
                   </button>
                 </>
               )}
-              <button onClick={() => fetchData()}
+              <button onClick={() => fetchData(page, debouncedSearch)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 bg-white/5 border border-[#2a2a2a] hover:border-zinc-600 hover:text-zinc-200 transition-colors">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
                 Refresh
@@ -232,7 +262,8 @@ export function DashboardTable({ tableName, sessionId, relations = [] }: Dashboa
         </div>
 
         {/* Table */}
-        <div className="flex-1 min-h-0 overflow-auto scrollbar-thin mx-6 mb-6 rounded-xl border border-[#26263a] bg-[#12121c]">
+        <div className="flex flex-col flex-1 min-h-0 mx-6 mb-6 gap-0">
+        <div className="flex-1 min-h-0 overflow-auto scrollbar-thin rounded-t-xl border border-[#26263a] bg-[#12121c]">
           {isLoading ? (
             <div className="flex items-center justify-center py-20">
               <div className="w-6 h-6 border-2 border-violet-500/40 border-t-violet-500 rounded-full animate-spin" />
@@ -242,7 +273,7 @@ export function DashboardTable({ tableName, sessionId, relations = [] }: Dashboa
               <thead className="sticky top-0 z-10">
                 <tr className="bg-[#16162a]">
                   <th className="w-10 px-3 py-3 border-b border-[#26263a]">
-                    <input type="checkbox" checked={selectedRows.size === sortedRows.length && sortedRows.length > 0}
+                    <input type="checkbox" checked={selectedRows.size === rows.length && rows.length > 0}
                       onChange={toggleAll}
                       className="w-3.5 h-3.5 rounded border-zinc-600 bg-transparent accent-violet-500 cursor-pointer" />
                   </th>
@@ -338,6 +369,59 @@ export function DashboardTable({ tableName, sessionId, relations = [] }: Dashboa
             </table>
           )}
         </div>
+
+          {/* Pagination footer */}
+          {pages > 1 && (
+            <div className="flex items-center justify-between px-4 py-2.5 rounded-b-xl border border-t-0 border-[#26263a] bg-[#0e0e1a]">
+              <span className="text-[11px] text-zinc-600">
+                {((page - 1) * PAGE_SIZE + 1).toLocaleString()}–{Math.min(page * PAGE_SIZE, total).toLocaleString()} of {total.toLocaleString()}
+              </span>
+              <div className="flex items-center gap-1">
+                <button onClick={() => goToPage(1)} disabled={page === 1}
+                  className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-500 hover:text-zinc-200 hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="First page">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+                </button>
+                <button onClick={() => goToPage(page - 1)} disabled={page === 1}
+                  className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-500 hover:text-zinc-200 hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Previous page">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+
+                {/* Page number pills */}
+                <div className="flex items-center gap-0.5 mx-1">
+                  {Array.from({ length: Math.min(pages, 7) }, (_, i) => {
+                    let p: number;
+                    if (pages <= 7) {
+                      p = i + 1;
+                    } else if (page <= 4) {
+                      p = i < 5 ? i + 1 : i === 5 ? -1 : pages;
+                    } else if (page >= pages - 3) {
+                      p = i === 0 ? 1 : i === 1 ? -1 : pages - (6 - i);
+                    } else {
+                      p = i === 0 ? 1 : i === 1 ? -1 : i === 5 ? -2 : i === 6 ? pages : page + (i - 3);
+                    }
+                    if (p < 0) return <span key={`ellipsis-${i}`} className="w-6 text-center text-[11px] text-zinc-700">…</span>;
+                    return (
+                      <button key={p} onClick={() => goToPage(p)}
+                        className="w-7 h-7 flex items-center justify-center rounded-md text-[11px] font-medium transition-colors"
+                        style={{ background: p === page ? 'rgba(124,58,237,0.2)' : 'transparent', color: p === page ? '#a78bfa' : '#71717a' }}>
+                        {p}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button onClick={() => goToPage(page + 1)} disabled={page === pages}
+                  className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-500 hover:text-zinc-200 hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Next page">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+                <button onClick={() => goToPage(pages)} disabled={page === pages}
+                  className="w-7 h-7 flex items-center justify-center rounded-md text-zinc-500 hover:text-zinc-200 hover:bg-white/5 disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Last page">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {showModal && modalAnchor && (
@@ -349,7 +433,7 @@ export function DashboardTable({ tableName, sessionId, relations = [] }: Dashboa
           editRow={editingRow ?? undefined}
           moduleLabel={singularLabel}
           onClose={closeModal}
-          onSuccess={() => { closeModal(); fetchData(); }}
+          onSuccess={() => { closeModal(); fetchData(page, debouncedSearch); }}
         />
       )}
     </>

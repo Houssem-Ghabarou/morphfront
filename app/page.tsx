@@ -11,6 +11,8 @@ import type { SchemaChange } from '@/components/SlidePanel';
 import { AnalyticsPanel } from '@/components/AnalyticsPanel';
 import { ImportModal } from '@/components/ImportModal';
 import { ConnectionModal } from '@/components/ConnectionModal';
+import { DbSettingsPanel } from '@/components/DbSettingsPanel';
+import { useDbConnection } from '@/hooks/useDbConnection';
 import type { Column, VisualCard, AnalysisCard } from '@/types';
 
 export default function Home() {
@@ -18,6 +20,8 @@ export default function Home() {
   const initialized = useRef(false);
   const [importOpen, setImportOpen] = useState(false);
   const [connectOpen, setConnectOpen] = useState(false);
+  const [dbSettingsOpen, setDbSettingsOpen] = useState(false);
+  const dbConn = useDbConnection(session.currentSessionId);
   const [importToast, setImportToast] = useState<string | null>(null);
 
   const handleImportSuccess = useCallback((tableName: string, rowCount: number) => {
@@ -194,6 +198,8 @@ export default function Home() {
             onOpenDashboard={handleOpenDashboard}
             onImportCSV={() => setImportOpen(true)}
             onConnectDB={() => setConnectOpen(true)}
+            onOpenDbSettings={() => setDbSettingsOpen((v) => !v)}
+            dbConnectionName={dbConn.connection?.name ?? null}
             onAnalyzeClick={handleAnalyzeClick}
             isAnalyzing={isAnalyzing}
             onDropTable={session.removeTable}
@@ -213,7 +219,35 @@ export default function Home() {
               sessionId={session.currentSessionId}
               onClose={() => setConnectOpen(false)}
               onSuccess={handleImportSuccess}
+              onConnectionLinked={() => {
+                dbConn.reload();
+                setConnectOpen(false);
+              }}
             />
+          )}
+
+          {dbSettingsOpen && dbConn.connection && (
+            <>
+              {/* Click-outside overlay */}
+              <div
+                className="absolute inset-0 z-20"
+                onClick={() => setDbSettingsOpen(false)}
+              />
+              <DbSettingsPanel
+                connection={dbConn.connection}
+                isSyncing={dbConn.isSyncing}
+                lastSynced={dbConn.lastSynced}
+                onSync={() => {
+                  dbConn.sync().then(() => {
+                    if (session.currentSessionId) {
+                      session.switchSession(session.currentSessionId).catch(() => {});
+                    }
+                  });
+                }}
+                onAutoSyncChange={dbConn.setAutoSync}
+                onClose={() => setDbSettingsOpen(false)}
+              />
+            </>
           )}
 
           {importToast && (
