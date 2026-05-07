@@ -10,12 +10,14 @@ import { SlidePanel } from '@/components/SlidePanel';
 import type { SchemaChange } from '@/components/SlidePanel';
 import { AnalyticsPanel } from '@/components/AnalyticsPanel';
 import { ImportModal } from '@/components/ImportModal';
+import { ConnectionModal } from '@/components/ConnectionModal';
 import type { Column, VisualCard, AnalysisCard } from '@/types';
 
 export default function Home() {
   const session = useSession();
   const initialized = useRef(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [connectOpen, setConnectOpen] = useState(false);
   const [importToast, setImportToast] = useState<string | null>(null);
 
   const handleImportSuccess = useCallback((tableName: string, rowCount: number) => {
@@ -191,6 +193,7 @@ export default function Home() {
             onAutoLayout={handleAutoLayout}
             onOpenDashboard={handleOpenDashboard}
             onImportCSV={() => setImportOpen(true)}
+            onConnectDB={() => setConnectOpen(true)}
             onAnalyzeClick={handleAnalyzeClick}
             isAnalyzing={isAnalyzing}
             onDropTable={session.removeTable}
@@ -201,6 +204,14 @@ export default function Home() {
               sessionId={session.currentSessionId}
               hasExistingTables={session.tables.length > 0}
               onClose={() => setImportOpen(false)}
+              onSuccess={handleImportSuccess}
+            />
+          )}
+
+          {connectOpen && session.currentSessionId && (
+            <ConnectionModal
+              sessionId={session.currentSessionId}
+              onClose={() => setConnectOpen(false)}
               onSuccess={handleImportSuccess}
             />
           )}

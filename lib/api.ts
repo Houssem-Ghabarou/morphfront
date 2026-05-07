@@ -198,4 +198,39 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+
+  // ─── Database connections ────────────────────────────────────────────────────
+
+  testConnection(config: {
+    type: string; host: string; port: number; database: string; username: string; password: string; ssl?: boolean;
+  }): Promise<{ ok: boolean; error?: string }> {
+    return request('/api/connections/test', { method: 'POST', body: JSON.stringify(config) });
+  },
+
+  discoverSchemas(config: {
+    type: string; host: string; port: number; database: string; username: string; password: string; ssl?: boolean;
+  }): Promise<{ tables: Array<{ tableName: string; rowCount: number; columns: Array<{ name: string; type: string; nullable: boolean }>; sampleRows: Record<string, unknown>[] }> }> {
+    return request('/api/connections/discover', { method: 'POST', body: JSON.stringify(config) });
+  },
+
+  importFromConnection(payload: {
+    type: string; host: string; port: number; database: string; username: string; password: string; ssl?: boolean;
+    sessionId: number; tables: string[];
+  }): Promise<{ results: Array<{ tableName: string; rowsImported: number; error?: string }> }> {
+    return request('/api/connections/import', { method: 'POST', body: JSON.stringify(payload) });
+  },
+
+  getConnections(): Promise<{ connections: Array<{ id: number; name: string; type: string; host: string; port: number; database_name: string; username: string; ssl: boolean }> }> {
+    return request('/api/connections');
+  },
+
+  saveConnection(config: {
+    type: string; host: string; port: number; database: string; username: string; password: string; ssl?: boolean; name?: string;
+  }): Promise<{ connection: { id: number; name: string; type: string } }> {
+    return request('/api/connections', { method: 'POST', body: JSON.stringify(config) });
+  },
+
+  deleteConnection(id: number): Promise<{ ok: boolean }> {
+    return request(`/api/connections/${id}`, { method: 'DELETE' });
+  },
 };

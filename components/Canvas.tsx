@@ -20,6 +20,7 @@ interface CanvasProps {
   onAutoLayout?: () => void;
   onOpenDashboard?: () => void;
   onImportCSV?: () => void;
+  onConnectDB?: () => void;
   onAnalyzeClick?: () => void;
   isAnalyzing?: boolean;
   onDropTable?: (tableName: string) => void;
@@ -40,7 +41,7 @@ function describe(rel: Relation) {
   };
 }
 
-export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualCards, onRemoveVisualCard, onVisualCardPositionChange, relations = [], onAutoLayout, onOpenDashboard, onImportCSV, onAnalyzeClick, isAnalyzing, onDropTable }: CanvasProps) {
+export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualCards, onRemoveVisualCard, onVisualCardPositionChange, relations = [], onAutoLayout, onOpenDashboard, onImportCSV, onConnectDB, onAnalyzeClick, isAnalyzing, onDropTable }: CanvasProps) {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
   /** Click a row in any table to filter descendant tables along FK links (e.g. pick a client → meals / programs). */
@@ -379,6 +380,22 @@ export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualC
 
       {/* Toolbar — top-right */}
       <div className="absolute top-4 right-4 pointer-events-auto select-none flex items-center gap-2">
+        {/* Connect DB button */}
+        {sessionId && onConnectDB && (
+          <button
+            onClick={onConnectDB}
+            title="Connect Database"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 bg-[#111] border-[#2a2a2a] text-zinc-500 hover:border-violet-500/30 hover:text-violet-300 hover:bg-violet-600/15"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <ellipse cx="12" cy="5" rx="9" ry="3" />
+              <path d="M21 12c0 1.66-4.03 3-9 3s-9-1.34-9-3" />
+              <path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5" />
+            </svg>
+            <span>Connect DB</span>
+          </button>
+        )}
+
         {/* Import CSV button */}
         {sessionId && onImportCSV && (
           <button
