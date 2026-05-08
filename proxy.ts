@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 const PUBLIC_PATHS = ['/signin', '/signup'];
 const COOKIE_NAME = 'morph_token';
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
   const hasToken = req.cookies.has(COOKIE_NAME);
@@ -24,6 +24,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Exclude ALL _next/* internal routes (static, image, HMR, data, etc.) and static assets
   matcher: ['/((?!_next/|favicon.ico|morph.png).*)'],
 };

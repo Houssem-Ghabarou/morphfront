@@ -485,7 +485,7 @@ export function ChatPanel({
             <p className="text-[11px] text-zinc-600 text-center leading-relaxed">
               Describe your business — Morph builds the modules.
             </p>
-            <div className="flex flex-wrap gap-1.5 justify-center">
+            {/* <div className="flex flex-wrap gap-1.5 justify-center">
               {EMPTY_PROMPTS.map((p) => (
                 <button
                   key={p}
@@ -495,7 +495,7 @@ export function ChatPanel({
                   {p}
                 </button>
               ))}
-            </div>
+            </div> */}
           </div>
         ) : (
           messages.map((msg) => (

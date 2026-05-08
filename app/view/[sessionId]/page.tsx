@@ -37,8 +37,8 @@ function OverviewPage({ tableNames, stats, onSelectModule }: { tableNames: strin
   return (
     <div className="flex flex-col h-full animate-fade-in">
       <div className="shrink-0 px-6 pt-6 pb-2">
-        <h2 className="text-lg font-semibold text-zinc-100">Overview</h2>
-        <p className="text-xs text-zinc-600 mt-0.5">{tableNames.length} modules · {total} total records</p>
+        <h2 className="text-lg font-semibold text-[var(--text)]">Overview</h2>
+        <p className="text-xs text-[var(--text-subtle)] mt-0.5">{tableNames.length} modules · {total} total records</p>
       </div>
 
       {/* Stats cards */}
@@ -46,17 +46,17 @@ function OverviewPage({ tableNames, stats, onSelectModule }: { tableNames: strin
         <div className={`grid gap-3 ${stats.length <= 2 ? 'grid-cols-2' : stats.length === 3 ? 'grid-cols-3' : 'grid-cols-2 lg:grid-cols-4'}`}>
           {stats.map((s) => (
             <button key={s.tableName} onClick={() => onSelectModule(s.tableName)}
-              className="group text-left p-4 rounded-xl border border-[#26263a] bg-[#14141e] hover:border-violet-500/30 hover:bg-[#18182a] transition-all cursor-pointer">
+              className="group text-left p-4 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] hover:border-violet-500/30 hover:bg-[var(--bg-card-hover)] transition-all cursor-pointer">
               <div className="flex items-center justify-between mb-3">
                 <div className="w-9 h-9 rounded-lg bg-violet-600/15 border border-violet-500/20 flex items-center justify-center text-violet-400 group-hover:bg-violet-600/25 transition-colors">
                   <ModuleIcon name={s.tableName.replace(/^s\d+_/, '')} />
                 </div>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-700 group-hover:text-violet-400 transition-colors">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--text-subtle)] group-hover:text-violet-400 transition-colors">
                   <path d="M9 18l6-6-6-6"/>
                 </svg>
               </div>
-              <p className="text-2xl font-bold text-zinc-100">{s.count}</p>
-              <p className="text-[11px] text-zinc-500 mt-0.5">{s.label}</p>
+              <p className="text-2xl font-bold text-[var(--text)]">{s.count}</p>
+              <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{s.label}</p>
             </button>
           ))}
         </div>
@@ -64,25 +64,25 @@ function OverviewPage({ tableNames, stats, onSelectModule }: { tableNames: strin
 
       {/* Recent activity / module list */}
       <div className="flex-1 px-6 pb-6 overflow-auto">
-        <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Modules</h3>
+        <h3 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Modules</h3>
         <div className="space-y-1.5">
           {stats.map((s) => (
             <button key={s.tableName} onClick={() => onSelectModule(s.tableName)}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-[#1e1e30] bg-[#12121c] hover:border-violet-500/25 hover:bg-[#16162a] transition-all group cursor-pointer">
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-[var(--border-soft)] bg-[var(--bg-input)] hover:border-violet-500/25 hover:bg-[#16162a] transition-all group cursor-pointer">
               <div className="w-8 h-8 rounded-lg bg-violet-600/10 border border-violet-500/15 flex items-center justify-center text-violet-400 shrink-0 group-hover:bg-violet-600/20 transition-colors">
                 <ModuleIcon name={s.tableName.replace(/^s\d+_/, '')} size={13} />
               </div>
               <div className="flex-1 min-w-0 text-left">
-                <p className="text-[12px] font-medium text-zinc-200 group-hover:text-white transition-colors">{s.label}</p>
-                <p className="text-[10px] text-zinc-600">{s.count} record{s.count !== 1 ? 's' : ''}</p>
+                <p className="text-[12px] font-medium text-[var(--text)] group-hover:text-white transition-colors">{s.label}</p>
+                <p className="text-[10px] text-[var(--text-subtle)]">{s.count} record{s.count !== 1 ? 's' : ''}</p>
               </div>
               <div className="flex items-center gap-2">
                 {s.latestRow && (
-                  <span className="text-[10px] text-zinc-700 max-w-[140px] truncate">
+                  <span className="text-[10px] text-[var(--text-subtle)] max-w-[140px] truncate">
                     Latest: {Object.values(s.latestRow).find((v) => typeof v === 'string' && v.length > 0) as string || '—'}
                   </span>
                 )}
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-700 group-hover:text-violet-400 shrink-0 transition-colors">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[var(--text-subtle)] group-hover:text-violet-400 shrink-0 transition-colors">
                   <path d="M9 18l6-6-6-6"/>
                 </svg>
               </div>
@@ -144,7 +144,7 @@ export default function DashboardView({ params }: { params: Promise<{ sessionId:
 
   if (error) {
     return (
-      <div className="h-screen bg-[#0d0d12] flex items-center justify-center">
+      <div className="h-screen bg-[var(--bg)] flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2">
@@ -160,10 +160,10 @@ export default function DashboardView({ params }: { params: Promise<{ sessionId:
 
   if (!session) {
     return (
-      <div className="h-screen bg-[#0d0d12] flex items-center justify-center">
+      <div className="h-screen bg-[var(--bg)] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-violet-500/30 border-t-violet-500 rounded-full animate-spin" />
-          <p className="text-xs text-zinc-600">Loading app…</p>
+          <p className="text-xs text-[var(--text-subtle)]">Loading app…</p>
         </div>
       </div>
     );
@@ -172,11 +172,11 @@ export default function DashboardView({ params }: { params: Promise<{ sessionId:
   const tableNames = session.sessionTables.map((t) => t.table_name);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#0d0d12]">
+    <div className="flex h-screen overflow-hidden bg-[var(--bg)]">
       {/* Sidebar */}
-      <aside className={`shrink-0 flex flex-col border-r border-[#1a1a24] bg-[#0a0a0f] transition-all duration-200 ${sidebarCollapsed ? 'w-[52px]' : 'w-[220px]'}`}>
+      <aside className={`shrink-0 flex flex-col border-r border-[var(--border-muted)] bg-[var(--bg-sidebar)] transition-all duration-200 ${sidebarCollapsed ? 'w-[52px]' : 'w-[220px]'}`}>
         {/* Logo header */}
-        <div className={`flex items-center shrink-0 border-b border-[#1a1a24] ${sidebarCollapsed ? 'justify-center py-3' : 'gap-2.5 px-4 py-3.5'}`}>
+        <div className={`flex items-center shrink-0 border-b border-[var(--border-muted)] ${sidebarCollapsed ? 'justify-center py-3' : 'gap-2.5 px-4 py-3.5'}`}>
           <div className="w-7 h-7 rounded-lg bg-violet-600 flex items-center justify-center text-white shadow-[0_0_10px_rgba(124,58,237,0.4)] shrink-0">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
@@ -184,13 +184,13 @@ export default function DashboardView({ params }: { params: Promise<{ sessionId:
           </div>
           {!sidebarCollapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-[12px] font-semibold text-zinc-100 truncate">{session.name || 'Untitled'}</p>
-              <p className="text-[9px] text-zinc-700">Dashboard</p>
+              <p className="text-[12px] font-semibold text-[var(--text)] truncate">{session.name || 'Untitled'}</p>
+              <p className="text-[9px] text-[var(--text-subtle)]">Dashboard</p>
             </div>
           )}
           {!sidebarCollapsed && (
             <button onClick={() => setSidebarCollapsed(true)}
-              className="w-6 h-6 flex items-center justify-center rounded text-zinc-700 hover:text-zinc-400 hover:bg-white/5 transition-colors shrink-0">
+              className="w-6 h-6 flex items-center justify-center rounded text-[var(--text-subtle)] hover:text-zinc-400 hover:bg-white/5 transition-colors shrink-0">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6"/></svg>
             </button>
           )}
@@ -198,7 +198,7 @@ export default function DashboardView({ params }: { params: Promise<{ sessionId:
 
         {sidebarCollapsed && (
           <button onClick={() => setSidebarCollapsed(false)}
-            className="mx-auto mt-2 w-8 h-8 flex items-center justify-center rounded-lg text-zinc-600 hover:text-zinc-400 hover:bg-white/5 transition-colors">
+            className="mx-auto mt-2 w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-subtle)] hover:text-zinc-400 hover:bg-white/5 transition-colors">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
           </button>
         )}
@@ -209,7 +209,7 @@ export default function DashboardView({ params }: { params: Promise<{ sessionId:
           <div className={sidebarCollapsed ? 'px-1.5' : 'px-2'}>
             <button onClick={() => setActiveModule(null)}
               className={`w-full flex items-center rounded-lg transition-all mb-1 cursor-pointer ${sidebarCollapsed ? 'justify-center p-2' : 'gap-2.5 px-3 py-2'} ${
-                activeModule === null ? 'bg-violet-600/15 text-violet-300' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.03]'
+                activeModule === null ? 'bg-violet-600/15 text-violet-300' : 'text-[var(--text-muted)] hover:text-zinc-300 hover:bg-white/[0.03]'
               }`}
               title="Overview"
             >
@@ -224,7 +224,7 @@ export default function DashboardView({ params }: { params: Promise<{ sessionId:
           {/* Module separator */}
           {!sidebarCollapsed && tableNames.length > 0 && (
             <div className="px-4 pt-4 pb-1.5">
-              <span className="text-[9px] font-semibold uppercase tracking-widest text-zinc-700">Modules</span>
+              <span className="text-[9px] font-semibold uppercase tracking-widest text-[var(--text-subtle)]">Modules</span>
             </div>
           )}
           {sidebarCollapsed && tableNames.length > 0 && <div className="mx-3 my-2 h-px bg-[#1e1e2e]" />}
@@ -239,7 +239,7 @@ export default function DashboardView({ params }: { params: Promise<{ sessionId:
               return (
                 <button key={name} onClick={() => setActiveModule(name)}
                   className={`w-full flex items-center rounded-lg transition-all cursor-pointer ${sidebarCollapsed ? 'justify-center p-2' : 'gap-2.5 px-3 py-2'} ${
-                    isActive ? 'bg-violet-600/15 text-violet-300' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.03]'
+                    isActive ? 'bg-violet-600/15 text-violet-300' : 'text-[var(--text-muted)] hover:text-zinc-300 hover:bg-white/[0.03]'
                   }`}
                   title={label}
                 >
@@ -250,7 +250,7 @@ export default function DashboardView({ params }: { params: Promise<{ sessionId:
                     <>
                       <span className="flex-1 text-[11px] font-medium text-left truncate">{label}</span>
                       {stat && (
-                        <span className={`text-[9px] font-mono shrink-0 ${isActive ? 'text-violet-400/60' : 'text-zinc-700'}`}>
+                        <span className={`text-[9px] font-mono shrink-0 ${isActive ? 'text-violet-400/60' : 'text-[var(--text-subtle)]'}`}>
                           {stat.count}
                         </span>
                       )}
@@ -263,9 +263,9 @@ export default function DashboardView({ params }: { params: Promise<{ sessionId:
         </nav>
 
         {/* Footer */}
-        <div className={`shrink-0 border-t border-[#1a1a24] ${sidebarCollapsed ? 'py-2 px-1.5' : 'py-2.5 px-3'}`}>
+        <div className={`shrink-0 border-t border-[var(--border-muted)] ${sidebarCollapsed ? 'py-2 px-1.5' : 'py-2.5 px-3'}`}>
           <a href="/"
-            className={`flex items-center rounded-lg text-zinc-600 hover:text-violet-400 hover:bg-violet-500/8 transition-all ${sidebarCollapsed ? 'justify-center p-2' : 'gap-2 px-3 py-2'}`}
+            className={`flex items-center rounded-lg text-[var(--text-subtle)] hover:text-violet-400 hover:bg-violet-500/8 transition-all ${sidebarCollapsed ? 'justify-center p-2' : 'gap-2 px-3 py-2'}`}
             title="Open in Editor"
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
