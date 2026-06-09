@@ -27,10 +27,10 @@ export default function SignInPage() {
     }
   }
 
-  const inputStyle = { background: '#0d0d12', border: '1px solid #26263a' } as const;
+  const inputStyle = { background: '#14141f', border: '1px solid #3a3a57' } as const;
 
   return (
-    <div className="min-h-screen flex bg-[#0d0d12] text-zinc-100">
+    <div data-theme="dark" className="min-h-screen flex text-zinc-100" style={{ background: '#0d0d12' }}>
       {/* ===== Left brand / hero panel (desktop only) ===== */}
       <div
         className="hidden lg:flex lg:w-1/2 relative overflow-hidden flex-col justify-between p-12"
@@ -91,15 +91,15 @@ export default function SignInPage() {
                   </svg>
                 </div>
                 <div>
-                  <div className="text-sm font-medium text-zinc-200">{f.t}</div>
-                  <div className="text-xs text-zinc-500">{f.d}</div>
+                  <div className="text-sm font-medium text-zinc-100">{f.t}</div>
+                  <div className="text-xs text-zinc-400">{f.d}</div>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="relative text-xs text-zinc-600">© {new Date().getFullYear()} Morph — iMaxeam</div>
+        <div className="relative text-xs text-zinc-400">© {new Date().getFullYear()} Morph — iMaxeam</div>
       </div>
 
       {/* ===== Right form panel ===== */}
@@ -130,15 +130,15 @@ export default function SignInPage() {
 
           <div className="mb-7">
             <h1 className="text-2xl font-bold text-zinc-100">Welcome back</h1>
-            <p className="text-sm text-zinc-500 mt-1">Sign in to your workspace to continue.</p>
+            <p className="text-sm text-zinc-400 mt-1">Sign in to your workspace to continue.</p>
           </div>
 
           {/* Social buttons (decorative) */}
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
-              className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium text-zinc-200 transition-colors hover:bg-[#20202f]"
-              style={{ background: '#15151f', border: '1px solid #26263a' }}
+              className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium text-zinc-100 transition-colors hover:bg-[#2c2c3c]"
+              style={{ background: '#22222f', border: '1px solid #3a3a57' }}
             >
               <svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true">
                 <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z" />
@@ -150,8 +150,8 @@ export default function SignInPage() {
             </button>
             <button
               type="button"
-              className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium text-zinc-200 transition-colors hover:bg-[#20202f]"
-              style={{ background: '#15151f', border: '1px solid #26263a' }}
+              className="flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium text-zinc-100 transition-colors hover:bg-[#2c2c3c]"
+              style={{ background: '#22222f', border: '1px solid #3a3a57' }}
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
                 <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
@@ -162,9 +162,9 @@ export default function SignInPage() {
 
           {/* Divider */}
           <div className="flex items-center gap-3 my-5">
-            <div className="h-px flex-1" style={{ background: '#26263a' }} />
-            <span className="text-xs text-zinc-600">or continue with email</span>
-            <div className="h-px flex-1" style={{ background: '#26263a' }} />
+            <div className="h-px flex-1" style={{ background: '#3a3a57' }} />
+            <span className="text-xs text-zinc-400">or continue with email</span>
+            <div className="h-px flex-1" style={{ background: '#3a3a57' }} />
           </div>
 
           {/* Card */}
@@ -172,7 +172,7 @@ export default function SignInPage() {
             className="rounded-2xl p-6"
             style={{
               background: '#1a1a28',
-              border: '1px solid #26263a',
+              border: '1px solid #3a3a57',
               boxShadow: '0 0 0 1px rgba(124,58,237,0.06), 0 24px 48px rgba(0,0,0,0.5)',
             }}
           >
@@ -195,10 +195,10 @@ export default function SignInPage() {
                   placeholder="you@example.com"
                   required
                   autoFocus
-                  className="w-full px-3 py-2.5 rounded-lg text-sm text-zinc-100 placeholder-zinc-600 outline-none transition-all"
+                  className="w-full px-3 py-2.5 rounded-lg text-sm text-zinc-100 placeholder-zinc-500 outline-none transition-all"
                   style={inputStyle}
                   onFocus={(e) => (e.target.style.borderColor = '#7c3aed')}
-                  onBlur={(e) => (e.target.style.borderColor = '#26263a')}
+                  onBlur={(e) => (e.target.style.borderColor = '#3a3a57')}
                 />
               </div>
 
@@ -215,10 +215,10 @@ export default function SignInPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="w-full px-3 py-2.5 rounded-lg text-sm text-zinc-100 placeholder-zinc-600 outline-none transition-all"
+                  className="w-full px-3 py-2.5 rounded-lg text-sm text-zinc-100 placeholder-zinc-500 outline-none transition-all"
                   style={inputStyle}
                   onFocus={(e) => (e.target.style.borderColor = '#7c3aed')}
-                  onBlur={(e) => (e.target.style.borderColor = '#26263a')}
+                  onBlur={(e) => (e.target.style.borderColor = '#3a3a57')}
                 />
               </div>
 
@@ -244,7 +244,7 @@ export default function SignInPage() {
             </form>
           </div>
 
-          <p className="text-center text-sm text-zinc-500 mt-5">
+          <p className="text-center text-sm text-zinc-400 mt-5">
             Don&apos;t have an account?{' '}
             <Link href="/signup" className="text-violet-400 hover:text-violet-300 font-medium transition-colors">
               Sign up
