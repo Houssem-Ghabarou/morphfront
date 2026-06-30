@@ -5,7 +5,19 @@ import type {
   TableSchema,
   DataRow,
   Relation,
+  EmailSettings,
+  Automation,
+  ParsedAutomation,
+  AutomationRun,
+  Note,
 } from '@/types';
+
+export interface SendResult {
+  ok: boolean;
+  via?: 'smtp' | 'dev';
+  detail?: string;
+  error?: string;
+}
 
 const BASE_URL = 'http://localhost:3001';
 
@@ -291,5 +303,81 @@ export const api = {
 
   deleteConnection(id: number): Promise<{ ok: boolean }> {
     return request(`/api/connections/${id}`, { method: 'DELETE' });
+  },
+
+  // ─── Email settings ──────────────────────────────────────────────────────────
+
+  getEmailSettings(): Promise<{ settings: EmailSettings | null }> {
+    return request('/api/email/settings');
+  },
+
+  saveEmailSettings(settings: Partial<EmailSettings>): Promise<{ settings: EmailSettings }> {
+    return request('/api/email/settings', { method: 'POST', body: JSON.stringify(settings) });
+  },
+
+  testEmail(to?: string): Promise<SendResult> {
+    return request('/api/email/test', { method: 'POST', body: JSON.stringify({ to }) });
+  },
+
+  sendReport(sessionId: number, to?: string, subject?: string): Promise<SendResult> {
+    return request('/api/email/report', {
+      method: 'POST',
+      body: JSON.stringify({ sessionId, to, subject }),
+    });
+  },
+
+  // ─── Automations ───────────────────────────────────────────────────────────
+
+  parseAutomation(input: string, sessionId: number): Promise<{ automation: ParsedAutomation; defaultEmail: string }> {
+    return request('/api/automations/parse', {
+      method: 'POST',
+      body: JSON.stringify({ input, sessionId }),
+    });
+  },
+
+  listAutomations(sessionId: number): Promise<{ automations: Automation[] }> {
+    return request(`/api/automations?sessionId=${sessionId}`);
+  },
+
+  createAutomation(body: Partial<Automation> & { sessionId?: number }): Promise<{ automation: Automation }> {
+    return request('/api/automations', { method: 'POST', body: JSON.stringify(body) });
+  },
+
+  updateAutomation(id: number, body: Partial<Automation>): Promise<{ automation: Automation }> {
+    return request(`/api/automations/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+  },
+
+  deleteAutomation(id: number): Promise<{ ok: boolean }> {
+    return request(`/api/automations/${id}`, { method: 'DELETE' });
+  },
+
+  runAutomation(id: number): Promise<{ outcome: { status: string; rowsAffected: number; actionResult: string; error?: string } }> {
+    return request(`/api/automations/${id}/run`, { method: 'POST' });
+  },
+
+  getAutomationRuns(id: number): Promise<{ runs: AutomationRun[] }> {
+    return request(`/api/automations/${id}/runs`);
+  },
+
+  getRecentRuns(): Promise<{ runs: AutomationRun[] }> {
+    return request('/api/automations/runs/recent');
+  },
+
+  // ─── Sticky notes ────────────────────────────────────────────────────────────
+
+  getNotes(sessionId: number): Promise<{ notes: Note[] }> {
+    return request(`/api/sessions/${sessionId}/notes`);
+  },
+
+  createNote(sessionId: number, body: Partial<Note>): Promise<{ note: Note }> {
+    return request(`/api/sessions/${sessionId}/notes`, { method: 'POST', body: JSON.stringify(body) });
+  },
+
+  updateNote(id: number, body: Partial<Note>): Promise<{ note: Note }> {
+    return request(`/api/notes/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
+  },
+
+  deleteNote(id: number): Promise<{ ok: boolean }> {
+    return request(`/api/notes/${id}`, { method: 'DELETE' });
   },
 };

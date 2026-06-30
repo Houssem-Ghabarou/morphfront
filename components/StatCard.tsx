@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { formatValue } from '@/lib/formatValue';
 
 interface StatCardProps {
   id: string;
@@ -132,7 +133,7 @@ export function StatCard({
         {/* Body */}
         <div className="px-4 py-4 flex flex-col gap-1">
           <span className="text-3xl font-bold text-white leading-none">
-            {value === null || value === undefined ? '—' : String(value)}
+            {value === null || value === undefined ? '—' : formatValue(value)}
           </span>
           <span className="text-[11px] text-zinc-500 uppercase tracking-wider capitalize">
             {label}

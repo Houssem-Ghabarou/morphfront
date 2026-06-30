@@ -2,6 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import type { AnalysisCard } from '@/types';
+import { formatValue } from '@/lib/formatValue';
+
+/** Numbers keep their nice formatting; everything else routes through formatValue. */
+function fmtAny(v: unknown): string {
+  if (v === null || v === undefined || v === '') return '—';
+  if (typeof v === 'number' || (typeof v === 'string' && v.trim() !== '' && !isNaN(Number(v)))) {
+    const n = Number(v);
+    return String(v).includes('.') ? n.toFixed(1) : n.toLocaleString();
+  }
+  return formatValue(v);
+}
 
 interface AnalyticsPanelProps {
   cards: AnalysisCard[];
@@ -52,12 +63,7 @@ function StatTile({ card, onPin, onDismiss }: { card: AnalysisCard; onPin: () =>
   const mainVal = vals[0]?.[1];
   const secondaryVal = vals.length > 1 ? vals[1] : null;
 
-  function fmt(v: unknown): string {
-    if (v === null || v === undefined) return '—';
-    const n = Number(v);
-    if (!isNaN(n) && String(v).includes('.')) return n.toFixed(1);
-    return String(v);
-  }
+  const fmt = fmtAny;
 
   return (
     <div
@@ -112,7 +118,7 @@ function BarChartInline({ card, onPin, onDismiss }: { card: AnalysisCard; onPin:
       </div>
       <div className="px-3.5 py-3 flex flex-col gap-2">
         {displayRows.map((row, i) => {
-          const label = String(row[labelCol] ?? '');
+          const label = formatValue(row[labelCol]);
           const val = Number(row[valueCol]) || 0;
           const pct = (val / maxVal) * 100;
           return (
@@ -132,12 +138,7 @@ function BarChartInline({ card, onPin, onDismiss }: { card: AnalysisCard; onPin:
 
 function TableInline({ card, onPin, onDismiss }: { card: AnalysisCard; onPin: () => void; onDismiss: () => void }) {
   const displayRows = card.rows.slice(0, 10);
-  function fmtCell(v: unknown): string {
-    if (v === null || v === undefined) return '—';
-    const n = Number(v);
-    if (!isNaN(n) && String(v).includes('.')) return n.toFixed(1);
-    return String(v);
-  }
+  const fmtCell = fmtAny;
 
   return (
     <div className="group rounded-xl overflow-hidden transition-colors" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>

@@ -6,7 +6,8 @@ import { TableCard } from '@/components/TableCard';
 import { StatCard } from '@/components/StatCard';
 import { BarChartCard } from '@/components/BarChartCard';
 import { QueryResultCard } from '@/components/QueryResultCard';
-import type { TableCardData, VisualCard, Relation } from '@/types';
+import { NoteCard } from '@/components/NoteCard';
+import type { TableCardData, VisualCard, Relation, Note } from '@/types';
 
 interface CanvasProps {
   tables: TableCardData[];
@@ -26,6 +27,11 @@ interface CanvasProps {
   onAnalyzeClick?: () => void;
   isAnalyzing?: boolean;
   onDropTable?: (tableName: string) => void;
+  onAutomate?: () => void;
+  notes?: Note[];
+  onAddNote?: (x: number, y: number) => void;
+  onSaveNote?: (id: number, patch: Partial<Note>) => void;
+  onDeleteNote?: (id: number) => void;
 }
 
 const MIN_SCALE = 0.2;
@@ -43,7 +49,7 @@ function describe(rel: Relation) {
   };
 }
 
-export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualCards, onRemoveVisualCard, onVisualCardPositionChange, relations = [], onAutoLayout, onOpenDashboard, onImportCSV, onConnectDB, onOpenDbSettings, dbConnectionName, onAnalyzeClick, isAnalyzing, onDropTable }: CanvasProps) {
+export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualCards, onRemoveVisualCard, onVisualCardPositionChange, relations = [], onAutoLayout, onOpenDashboard, onImportCSV, onConnectDB, onOpenDbSettings, dbConnectionName, onAnalyzeClick, isAnalyzing, onDropTable, onAutomate, notes = [], onAddNote, onSaveNote, onDeleteNote }: CanvasProps) {
   // offset is ref-only — pan writes directly to DOM, bypassing React re-renders
   const offsetRef = useRef({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
@@ -56,6 +62,18 @@ export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualC
     const s = scaleRef.current;
     transformLayerRef.current.style.transform = `translate(${x}px, ${y}px) scale(${s})`;
   }, []);
+
+  // Drop a new note at the current viewport center, translated into canvas space.
+  const handleAddNote = useCallback(() => {
+    if (!onAddNote) return;
+    const rect = canvasRef.current?.getBoundingClientRect();
+    const s = scaleRef.current > 0 ? scaleRef.current : 1;
+    const vw = rect?.width ?? window.innerWidth;
+    const vh = rect?.height ?? window.innerHeight;
+    const cx = (vw / 2 - offsetRef.current.x) / s - 115;
+    const cy = (vh / 2 - offsetRef.current.y) / s - 70;
+    onAddNote(cx, cy);
+  }, [onAddNote]);
 
   /** Click a row in any table to filter descendant tables along FK links (e.g. pick a client → meals / programs). */
   const [selectedRow, setSelectedRow] = useState<{
@@ -338,6 +356,11 @@ export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualC
             </div>
           );
         })}
+        {onSaveNote && onDeleteNote && notes.map((note) => (
+          <div key={note.id} style={{ pointerEvents: 'auto' }}>
+            <NoteCard note={note} canvasScaleRef={scaleRef} onSave={onSaveNote} onDelete={onDeleteNote} />
+          </div>
+        ))}
       </div>
 
       {/* Relation hover tooltip */}
@@ -455,6 +478,35 @@ export function Canvas({ tables, sessionId, onPositionChange, isLoading, visualC
               </svg>
             )}
             <span>{isAnalyzing ? 'Analyzing...' : 'Analyze'}</span>
+          </button>
+        )}
+
+        {/* Add note button */}
+        {sessionId && onAddNote && (
+          <button
+            onClick={handleAddNote}
+            title="Add a sticky note to the canvas"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 bg-[#111] border-[#2a2a2a] text-zinc-500 hover:border-amber-400/40 hover:text-amber-300 hover:bg-amber-500/10"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M15.5 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9l7-7V5a2 2 0 0 0-2-2z" />
+              <path d="M15 21v-6a1 1 0 0 1 1-1h6" />
+            </svg>
+            <span>Note</span>
+          </button>
+        )}
+
+        {/* Automate button */}
+        {sessionId && onAutomate && (
+          <button
+            onClick={onAutomate}
+            title="Automations — email reports, alerts & reminders"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 bg-[#111] border-[#2a2a2a] text-zinc-500 hover:border-violet-500/30 hover:text-violet-300 hover:bg-violet-600/15"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
+            </svg>
+            <span>Automate</span>
           </button>
         )}
 

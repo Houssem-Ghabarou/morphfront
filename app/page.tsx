@@ -12,8 +12,9 @@ import { AnalyticsPanel } from '@/components/AnalyticsPanel';
 import { ImportModal } from '@/components/ImportModal';
 import { ConnectionModal } from '@/components/ConnectionModal';
 import { DbSettingsPanel } from '@/components/DbSettingsPanel';
+import { AutomationPanel } from '@/components/AutomationPanel';
 import { useDbConnection } from '@/hooks/useDbConnection';
-import type { Column, VisualCard, AnalysisCard } from '@/types';
+import type { Column, VisualCard, AnalysisCard, Note } from '@/types';
 
 export default function Home() {
   const session = useSession();
@@ -21,7 +22,39 @@ export default function Home() {
   const [importOpen, setImportOpen] = useState(false);
   const [connectOpen, setConnectOpen] = useState(false);
   const [dbSettingsOpen, setDbSettingsOpen] = useState(false);
+  const [automateOpen, setAutomateOpen] = useState(false);
+  const [notes, setNotes] = useState<Note[]>([]);
   const dbConn = useDbConnection(session.currentSessionId);
+
+  // Load sticky notes whenever the active session changes
+  useEffect(() => {
+    if (!session.currentSessionId) { setNotes([]); return; }
+    let cancelled = false;
+    api.getNotes(session.currentSessionId)
+      .then(({ notes }) => { if (!cancelled) setNotes(notes); })
+      .catch(() => { if (!cancelled) setNotes([]); });
+    return () => { cancelled = true; };
+  }, [session.currentSessionId]);
+
+  const handleAddNote = useCallback(async (x: number, y: number) => {
+    if (!session.currentSessionId) return;
+    try {
+      const { note } = await api.createNote(session.currentSessionId, { pos_x: x, pos_y: y, color: 'yellow', content: '' });
+      setNotes((prev) => [...prev, note]);
+    } catch (err) {
+      console.error('Failed to add note', err);
+    }
+  }, [session.currentSessionId]);
+
+  const handleSaveNote = useCallback((id: number, patch: Partial<Note>) => {
+    setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, ...patch } : n)));
+    api.updateNote(id, patch).catch((err) => console.error('Failed to save note', err));
+  }, []);
+
+  const handleDeleteNote = useCallback((id: number) => {
+    setNotes((prev) => prev.filter((n) => n.id !== id));
+    api.deleteNote(id).catch((err) => console.error('Failed to delete note', err));
+  }, []);
   const [importToast, setImportToast] = useState<string | null>(null);
 
   const handleImportSuccess = useCallback((tableName: string, rowCount: number) => {
@@ -203,6 +236,11 @@ export default function Home() {
             onAnalyzeClick={handleAnalyzeClick}
             isAnalyzing={isAnalyzing}
             onDropTable={session.removeTable}
+            onAutomate={() => setAutomateOpen(true)}
+            notes={notes}
+            onAddNote={handleAddNote}
+            onSaveNote={handleSaveNote}
+            onDeleteNote={handleDeleteNote}
           />
 
           {importOpen && session.currentSessionId && (
@@ -278,6 +316,13 @@ export default function Home() {
               cards={analysisCards}
               onPinToCanvas={handlePinToCanvas}
               onClose={() => setAnalysisCards(null)}
+            />
+          )}
+
+          {automateOpen && session.currentSessionId && (
+            <AutomationPanel
+              sessionId={session.currentSessionId}
+              onClose={() => setAutomateOpen(false)}
             />
           )}
         </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { formatValue } from '@/lib/formatValue';
 
 interface BarChartCardProps {
   id: string;
@@ -143,7 +144,7 @@ export function BarChartCard({
             const val = Number(row[valueCol]) || 0;
             const heightPct = maxValue > 0 ? (val / maxValue) * 100 : 0;
             const heightPx = Math.max(4, (heightPct / 100) * 108);
-            const labelVal = String(row[labelCol] ?? '');
+            const labelVal = formatValue(row[labelCol]);
 
             return (
               <div key={i} className="flex flex-col items-center gap-1 flex-1 min-w-0" style={{ height: '100%', justifyContent: 'flex-end' }}>

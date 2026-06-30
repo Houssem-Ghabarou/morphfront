@@ -117,3 +117,77 @@ export interface LocalMessage {
   isTyping?: boolean;
   suggestions?: string[];
 }
+
+// ─── Automation engine ──────────────────────────────────────────────────────
+
+export interface EmailSettings {
+  provider: string;
+  host: string | null;
+  port: number | null;
+  secure: boolean;
+  smtp_user: string | null;
+  smtp_pass: string | null; // masked on read
+  from_name: string | null;
+  from_email: string | null;
+  api_key: string | null;   // masked on read
+  configured: boolean;
+}
+
+export type TriggerType = 'schedule' | 'threshold' | 'date_proximity';
+
+export interface Automation {
+  id: number;
+  user_id: number;
+  session_id: number | null;
+  name: string;
+  description: string | null;
+  enabled: boolean;
+  trigger_type: TriggerType | string;
+  trigger_config: Record<string, unknown>;
+  source_table: string | null;
+  query_sql: string | null;
+  condition_expr: string | null;
+  action_type: string;
+  action_config: Record<string, unknown>;
+  cooldown_minutes: number | null;
+  last_run_at: string | null;
+  last_fired_at: string | null;
+  next_run_at: string | null;
+  run_count: number;
+  created_at: string;
+}
+
+export interface ParsedAutomation {
+  name: string;
+  description?: string;
+  trigger_type: TriggerType;
+  trigger_config: Record<string, unknown>;
+  query_sql: string | null;
+  condition_expr: string | null;
+  action_type: 'send_email';
+  action_config: Record<string, unknown>;
+  trigger_label?: string;
+  confidence?: string;
+}
+
+export interface Note {
+  id: number;
+  session_id: number;
+  content: string;
+  color: string;
+  pos_x: number;
+  pos_y: number;
+}
+
+export interface AutomationRun {
+  id: number;
+  automation_id: number;
+  automation_name?: string;
+  status: 'success' | 'failed' | 'skipped' | 'no_data';
+  trigger_reason: string | null;
+  rows_affected: number | null;
+  action_result: string | null;
+  error_message: string | null;
+  duration_ms: number | null;
+  executed_at: string;
+}

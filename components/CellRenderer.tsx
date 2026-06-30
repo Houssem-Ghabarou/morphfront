@@ -1,14 +1,17 @@
 'use client';
 
 import { useState } from 'react';
+import { formatValue } from '@/lib/formatValue';
 
 // ─── Variant detection ────────────────────────────────────────────────────────
 
-type CellVariant = 'empty' | 'boolean' | 'date' | 'number' | 'tags' | 'long-text' | 'text';
+type CellVariant = 'empty' | 'boolean' | 'date' | 'number' | 'tags' | 'long-text' | 'text' | 'object';
 
 function detectVariant(value: unknown, dataType: string): CellVariant {
   if (value === null || value === undefined || value === '') return 'empty';
   if (typeof value === 'boolean') return 'boolean';
+  // Non-Date objects/arrays (e.g. JSON or Postgres interval) → render via formatValue, never "[object Object]"
+  if (typeof value === 'object' && !(value instanceof Date)) return 'object';
 
   const type = dataType.toLowerCase();
 
@@ -126,7 +129,15 @@ export function CellRenderer({ value, dataType, compact = true }: CellRendererPr
         <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
           <rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" />
         </svg>
-        {formatDate(String(value))}
+        {value instanceof Date ? formatValue(value) : formatDate(String(value))}
+      </span>
+    );
+  }
+
+  if (variant === 'object') {
+    return (
+      <span className="text-zinc-400 font-mono" style={{ fontSize: compact ? '10px' : '11px' }}>
+        {formatValue(value)}
       </span>
     );
   }

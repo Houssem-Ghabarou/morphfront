@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { formatValue } from '@/lib/formatValue';
 
 interface QueryResultCardProps {
   id: string;
@@ -156,10 +157,10 @@ export function QueryResultCard({
                           key={col}
                           className="px-3 py-2 text-zinc-300 font-mono whitespace-nowrap max-w-[200px] overflow-hidden text-ellipsis"
                         >
-                          {val === null || val === undefined ? (
+                          {val === null || val === undefined || val === '' ? (
                             <span className="text-zinc-700 italic">null</span>
                           ) : (
-                            String(val)
+                            formatValue(val)
                           )}
                         </td>
                       );
